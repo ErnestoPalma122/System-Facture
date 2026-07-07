@@ -1,0 +1,17 @@
+# --- Entorno Virtual ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Variables de Entorno ---
+.env
+.env.local
+
+# --- Archivos basura o de sistema ---
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+install/
