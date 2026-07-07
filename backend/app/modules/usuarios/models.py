@@ -4,6 +4,10 @@ Módulo consolidado de modelos de usuarios.
 Contiene: Usuario, Rol, Departamento, Sesion
 """
 
+
+# Prueba de colaboración - Luis - 07/07/
+# Prueba de Git - Luis - 07/07/2026
+
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
