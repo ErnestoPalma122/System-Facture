@@ -7,7 +7,7 @@ from functools import wraps
 from app.core.config import settings
 
 #guarda las marcas de tiempo de las peticiones en cada peticion
-#y borra las que ya caducaron lo que hace que cunete las
+#y borra las que ya caducaron lo que hace que conecte las
 #peticiones ip utilizando la RAM
 class InMemoryRateLimiter:
     """Rate limiter en memoria para desarrollo"""
@@ -93,7 +93,6 @@ class RedisRateLimiter:
 
 
 # Instancia global del rate limiter
-#
 def get_rate_limiter():
     """Obtiene la instancia del rate limiter"""
     if settings.REDIS_URL:
@@ -103,7 +102,7 @@ def get_rate_limiter():
 
 rate_limiter = get_rate_limiter()
 
-
+#permite proteger rutas con limites personalizados.
 def rate_limit(
     limit: Optional[int] = None,
     window: Optional[int] = None,

@@ -33,7 +33,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     logger.info(f"✅ Contraseña {'válida' if result else 'inválida'}")
     return result
 
-
+# tOMA EL TEXTO DELA CONTRASEÑA Y LO HASHEA O SEA LO CODIFICA PARA QUE NO SE PUEDA LEER
 def get_password_hash(password: str) -> str:
     """
     Hashea una contraseña.

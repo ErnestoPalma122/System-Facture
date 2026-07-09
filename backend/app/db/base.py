@@ -1,3 +1,4 @@
+#app\db\base.py
 """
 Base de datos y configuración de modelos.
 Este archivo importa todos los modelos para que Alembic los detecte.

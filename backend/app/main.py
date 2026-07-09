@@ -9,6 +9,8 @@ from app.modules.usuarios.routes import router as users_router
 from app.modules.productos.routesproducto import router as productos_router
 from app.modules.proveedores.routes_proveedor import router as proveedores_router
 from app.modules.inventario.routes_inventario import router as inventario_router
+from app.modules.ingreso_mercaderia.ingreso_mercaderia_routes import router as ingreso_mercaderia_router
+
 
 
 
@@ -38,6 +40,7 @@ app.include_router(users_router)
 app.include_router(productos_router)
 app.include_router(proveedores_router)
 app.include_router(inventario_router)
+app.include_router(ingreso_mercaderia_router)
 
 
 

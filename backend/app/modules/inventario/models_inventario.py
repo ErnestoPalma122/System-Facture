@@ -20,17 +20,17 @@ class Ingreso(Base):
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=False, index=True)
-    dte = Column(String(50), nullable=True, index=True)
-    sello = Column(String(100), nullable=True)
-    codigo_origen = Column(String(100), nullable=True, index=True)
-    cotizacion = Column(String(50), nullable=True)
-    observaciones = Column(Text, nullable=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)  # ← NUEVO
+    dte = Column(String(50), nullable=False, index=True)
+    sello = Column(String(100), nullable=False)
+    codigo_generacion = Column(String(100), nullable=False, index=True)
+    cotizacion = Column(String(50), nullable=False)
+    observaciones = Column(Text, nullable=False)
     
     # Fecha automática de creación
     fecha = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     
     activo = Column(Boolean, default=True, index=True)
-
     estado_ingreso_id = Column(Integer, ForeignKey("estado_ingreso.id"), nullable=False, index=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -38,10 +38,11 @@ class Ingreso(Base):
     
     # Relaciones
     proveedor = relationship("Proveedor")
+    usuario = relationship("Usuario")  # ← NUEVO
     items = relationship("Items", back_populates="ingreso", cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f"<Ingreso(id={self.id}, proveedor_id={self.proveedor_id}, dte={self.dte})>"
+        return f"<Ingreso(id={self.id}, proveedor_id={self.proveedor_id}, usuario_id={self.usuario_id}, dte={self.dte})>"
 
 
 class EstadoItems(Base):
@@ -49,7 +50,13 @@ class EstadoItems(Base):
     __tablename__ = "estado_items"
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+
+    #DEFAULT: 1 = Ejemplo: Disponible
     estado = Column(String(50), nullable=False, unique=True, index=True)
+    #Explicaciones adicionales sobre el estado del item, por ejemplo: 
+    observaciones = Column(String(100), nullable=False, unique=True, index=True)
+
+
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -69,11 +76,11 @@ class Items(Base):
     ingreso_id = Column(Integer, ForeignKey("ingresos.id"), nullable=False, index=True)
     producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False, index=True)
     bodega_id = Column(Integer, ForeignKey("bodegas.id"), nullable=False, index=True)
-    estado_item_id = Column(Integer, ForeignKey("estado_items.id"), nullable=True, index=True)
+    estado_item_id = Column(Integer, ForeignKey("estado_items.id"), nullable=False, index=True)
     
-    serie = Column(String(100), nullable=True, index=True)
+    serie = Column(String(100), nullable=False, index=True)
     dte = Column(String(50), nullable=True)
-    dias_stock = Column(Integer, nullable=True, default=0)
+    dias_stock = Column(Integer, nullable=False, default=0)
     
     activo = Column(Boolean, default=True, index=True)
     
