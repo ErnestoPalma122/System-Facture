@@ -26,6 +26,7 @@ from app.modules.productos.modelsproducto import (
 from app.modules.proveedores.models_proveedor import(
     Proveedor
 )
+#importa modelos de inventario
 from app.modules.inventario.models_inventario import(
     Ingreso,
     EstadoItems,
@@ -33,7 +34,7 @@ from app.modules.inventario.models_inventario import(
     Estado_Ingreso
 )
 
-
+#Lista de Exportaciones
 __all__ = [
     "Base",
     "Usuario",
