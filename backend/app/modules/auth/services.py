@@ -10,17 +10,17 @@ from datetime import datetime, timedelta
 import logging
 import secrets
 
-# Configurar logging detallado
+# Esta configuaración hace que se imprima en la consola, todo aquello que se encuantra en Logger.
 logger = logging.getLogger(__name__)
 
-# Contexto para hashear contraseñas
+# Contexto para hashear contraseñas usando bcrypt.
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
+#Compara una contraseña en texto plano, con el hash de la contraseña almacenada en la base de datos, y devuelve True si coinciden, o False si no.
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verifica si una contraseña en texto plano coincide con el hash.
-    
+     
     Args:
         plain_password: Contraseña en texto plano
         hashed_password: Hash de la contraseña almacenada
@@ -28,12 +28,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True si coinciden, False si no
     """
+    #esto se muestra en consola para depuracion, no se muestra en las contraseñas en texto plano, solo se muestra que se esta verificando la contraseña y si es valida o no.
     logger.info("🔐 Verificando contraseña...")
     result = pwd_context.verify(plain_password, hashed_password)
     logger.info(f"✅ Contraseña {'válida' if result else 'inválida'}")
     return result
 
-# tOMA EL TEXTO DELA CONTRASEÑA Y LO HASHEA O SEA LO CODIFICA PARA QUE NO SE PUEDA LEER
+#Toma una contraseña en texto plano y devuelve su hash, que es lo que se almacena en la base de datos. Esto es para que las contraseñas no se almacenen en texto plano, sino de forma segura.
 def get_password_hash(password: str) -> str:
     """
     Hashea una contraseña.
@@ -44,12 +45,13 @@ def get_password_hash(password: str) -> str:
     Returns:
         Hash de la contraseña
     """
+    #esto se muestra en consola para depuracion, no se muestra en las contraseñas en texto plano, solo se muestra que se esta hasheando la contraseña y el hash resultante.
     logger.info("🔐 Hasheando contraseña...")
     hashed = pwd_context.hash(password)
     logger.info(f"✅ Contraseña hasheada: {hashed[:20]}...")
     return hashed
 
-
+#Consulta un usuario por su email en la base de datos y devuelve el objeto Usuario si lo encuentra, o None si no lo encuentra. Esto es para poder autenticar al usuario en el login.
 def get_usuario_by_email(db: Session, email: str) -> Optional[Usuario]:
     """
     Busca un usuario por email.
@@ -61,7 +63,9 @@ def get_usuario_by_email(db: Session, email: str) -> Optional[Usuario]:
     Returns:
         Usuario encontrado o None
     """
+    
     logger.info(f"🔍 Buscando usuario con email: {email}")
+    #hace la consulta a la base de datos para buscar el usuario por su email, y devuelve el objeto Usuario si lo encuentra, o None si no lo encuentra.
     usuario = db.query(Usuario).filter(Usuario.email == email).first()
     
     if usuario:
@@ -71,7 +75,7 @@ def get_usuario_by_email(db: Session, email: str) -> Optional[Usuario]:
     
     return usuario
 
-
+#Es el proceso de autenticación del usuario, que verifica que el usuario este activo y que el email y la contraseña sean correctos.
 def authenticate_user(db: Session, email: str, password: str) -> Optional[Usuario]:
     """
     Autentica un usuario verificando email y contraseña.
@@ -79,13 +83,14 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[Usuari
     Raises:
         ValueError: Con mensajes específicos según el tipo de error
     """
+
     logger.info("=" * 60)
     logger.info(f"🔐 INICIANDO AUTENTICACIÓN para email: {email}")
     logger.info("=" * 60)
     
-    # PASO 1: Buscar usuario
+    # PASO 1: Buscar usuario en la base de datos, por email.
     usuario = get_usuario_by_email(db, email)
-    
+    #Evalua si existe el emal, si no existe, manda un menssaje de error, y termina la ejecucion de la funcion, si existe, continua con el siguiente paso.
     if not usuario:
         logger.error(f"❌ ERROR: Usuario con email {email} NO existe")
         raise ValueError("Credenciales inválidas. Verifica tu correo y contraseña.")
@@ -131,7 +136,7 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[Usuari
     
     return usuario
 
-
+#Registra una nueva sesión para el usuario autenticado, generando un access token y un refresh token, y guardando la sesión en la base de datos.
 def create_user_session(
     db: Session,
     usuario_id: int,
@@ -150,11 +155,12 @@ def create_user_session(
     Returns:
         Tupla (access_token, refresh_token, session_id)
     """
+
     logger.info("=" * 60)
     logger.info(f"🎫 CREANDO SESIÓN para usuario ID: {usuario_id}")
     logger.info("=" * 60)
     
-    # Crear tokens
+    # Crear tokens y refresca el token de acceso.
     access_token = create_access_token(data={"sub": str(usuario_id)})
     refresh_token = create_refresh_token(data={"sub": str(usuario_id), "type": "refresh"})
     
@@ -191,7 +197,7 @@ def create_user_session(
         logger.error(f"❌ ERROR al crear sesión: {str(e)}")
         raise ValueError(f"Error al crear sesión: {str(e)}")
 
-
+#Orquesta todo el proceso de login.
 def login(db: Session, credentials: LoginRequest, ip_address: str = None, user_agent: str = None):
     """
     Proceso completo de login.
@@ -206,7 +212,7 @@ def login(db: Session, credentials: LoginRequest, ip_address: str = None, user_a
     # Autenticar usuario (puede lanzar ValueError con mensajes específicos)
     usuario = authenticate_user(db, credentials.email, credentials.password)
     
-    # Crear sesión
+    # Crear sesión y llama la generacion de tokens, y devuelve el access token.
     access_token, refresh_token, session_id = create_user_session(
         db, usuario.id, ip_address, user_agent
     )
@@ -225,7 +231,7 @@ def login(db: Session, credentials: LoginRequest, ip_address: str = None, user_a
         "session_id": session_id
     }
 
-
+#Regsitra nuevos usuarios en el sistema.
 def register_user(db: Session, user_data: RegisterRequest):
     """
     Registra un nuevo usuario en el sistema.
@@ -298,7 +304,8 @@ def register_user(db: Session, user_data: RegisterRequest):
         logger.error(f"❌ ERROR DE BASE DE DATOS: {str(e)}")
         raise ValueError(f"Error de base de datos: {str(e)}")
 
-
+#Invalida el token de sesión marcandolo com cerrado en la base de datos, y actualiza el estado de la sesión a cerrada.
+#Esto es para que el usuario no pueda seguir usando el token después de cerrar sesión.
 def logout(db: Session, token: str):
     """
     Cierra la sesión del usuario invalidando el token.
@@ -315,9 +322,9 @@ def logout(db: Session, token: str):
     logger.info(f"🔑 Token: {token[:30]}...")
     logger.info("=" * 60)
     
-    # Buscar sesión por token
+    # Buscar sesión por token, en la tabla de sesiones.
     session = db.query(Sesion).filter(Sesion.token == token).first()
-    
+    #Si no encuantra la sesión, debuelve un False dando a entender que no hay secion activa con ese token.
     if not session:
         logger.warning(f"⚠️ No se encontró sesión con el token proporcionado")
         return False
@@ -336,7 +343,8 @@ def logout(db: Session, token: str):
         logger.error(f"❌ ERROR al cerrar sesión: {str(e)}")
         raise ValueError(f"Error al cerrar sesión: {str(e)}")
 
-
+#valida el refresh tken, y genera un nuevo access token, sin pedir credenciales al usuario,
+#esto es para que el usuario no tenga que volver a loguearse cada vez que el access token expira.
 def refresh_access_token(db: Session, refresh_token: str):
     """
     Refresca el access token usando un refresh token válido.
@@ -349,7 +357,7 @@ def refresh_access_token(db: Session, refresh_token: str):
     logger.info(f"🔑 Refresh Token: {refresh_token[:30]}...")
     logger.info("=" * 60)
     
-    # Verificar refresh token
+    # Verificar refresh token.
     payload = verify_token(refresh_token)
     
     if not payload:
@@ -361,7 +369,7 @@ def refresh_access_token(db: Session, refresh_token: str):
         logger.error("❌ ERROR: Token no es un refresh token")
         raise ValueError("Token no es un refresh token")
     
-    # Obtener usuario
+    # Obtener usuario extrayendo el id del campo "sub" del token.
     usuario_id = payload.get("sub")
     if not usuario_id:
         logger.error("❌ ERROR: Token no contiene ID de usuario")
@@ -369,14 +377,14 @@ def refresh_access_token(db: Session, refresh_token: str):
     
     logger.info(f"👤 Usuario ID del token: {usuario_id}")
     
-    # Verificar que el usuario existe
+    # Verificar que el usuario existe con el id extraido del token.
     usuario = db.query(Usuario).filter(Usuario.id == int(usuario_id)).first()
     
     if not usuario:
         logger.error(f"❌ ERROR: Usuario {usuario_id} no existe")
         raise ValueError("Usuario no encontrado")
     
-    # Verificar estado del usuario usando puede_acceder()
+    # Verificar estado del usuario usando puede_acceder()(activo, o desactivado, o bloqueado, o pendiente)
     if not usuario.puede_acceder():
         logger.error(f"❌ ERROR: Usuario {usuario_id} tiene estado {usuario.estado.value}")
         

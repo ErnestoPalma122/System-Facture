@@ -6,10 +6,8 @@ from app.core.rate_limiter import rate_limit
 from app.core.database import get_db
 from app.modules.auth.schemas import (
     LoginRequest,
-    RegisterRequest,
     ForgotPasswordRequest,
     LoginResponse,
-    RegisterResponse,
     MessageResponse,
     TokenResponse
 )

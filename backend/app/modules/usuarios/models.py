@@ -10,12 +10,15 @@ Contiene: Usuario, Rol, Departamento, Sesion
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text
 from sqlalchemy.orm import relationship
+# Permite usar funciones nativas de la base de datos (como NOW()) en lugar de depender solo de la hora de Python.
 from sqlalchemy.sql import func
+#Es la base declarativa que representa una tabla de la base de datos.
 from app.core.database import Base
 import enum
 import logging
 from datetime import datetime
 
+#quien se encarga de imprimir en la consola.
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +26,7 @@ logger = logging.getLogger(__name__)
 # ENUMS
 # ===========================================================
 
+#Este enum representa los posibles estados de un usuario en el sistema permitiendo solo lo definido.
 class EstadoUsuario(enum.Enum):
     """Estados posibles de un usuario"""
     ACTIVO = "ACTIVO"
@@ -30,7 +34,7 @@ class EstadoUsuario(enum.Enum):
     BLOQUEADO = "BLOQUEADO"
     PENDIENTE = "PENDIENTE"
 
-
+#
 class TipoRol(enum.Enum):
     """Tipos de roles en el sistema"""
     SUPER_ADMIN = "SUPER_ADMIN"
@@ -53,6 +57,9 @@ class EstadoSesion(enum.Enum):
 # MODELOS
 # ===========================================================
 
+#SON MODELOS O TABLAS DE REFERENCIA QUE REPRESENTAN ENTIDADES DEN LA BASE DE DATOS.
+
+#En este caso departamentos en un a empresa.
 class Departamento(Base):
     """Modelo para departamentos/áreas de la empresa"""
     __tablename__ = "departamentos"
@@ -70,7 +77,7 @@ class Departamento(Base):
     def __repr__(self):
         return f"<Departamento(id={self.id}, nombre={self.nombre}, activo={self.activo})>"
 
-
+#El rol que tiene un usuario, que define sus permisos y nivel de acceso al sistema.
 class Rol(Base):
     """Modelo para roles de usuario"""
     __tablename__ = "roles"
@@ -89,7 +96,7 @@ class Rol(Base):
     def __repr__(self):
         return f"<Rol(id={self.id}, nombre={self.nombre}, tipo={self.tipo}, activo={self.activo})>"
 
-
+#Los usuarios que pueden acceder al sistema, con sus credenciales y estado.
 class Usuario(Base):
     """Modelo principal de usuarios del sistema"""
     __tablename__ = "usuarios"
@@ -146,6 +153,7 @@ class Usuario(Base):
         return f"<Usuario(id={self.id}, email={self.email}, nombre={self.nombre}, estado={self.estado})>"
 
 
+#Este modelo registra las sesiones de casa usuario cada vez que inicia sesión en el sistema, permitiendo controlar su estado y duración.
 class Sesion(Base):
     """Modelo para registrar sesiones de usuarios"""
     __tablename__ = "sesiones"
