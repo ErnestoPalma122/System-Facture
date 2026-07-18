@@ -11,12 +11,14 @@ backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, backend_dir)
 
 # Importar configuración y modelos
+
 from app.core.config import settings
 from app.core.database import Base
 from app.modules.usuarios.models import Usuario, Departamento, Rol, Sesion
 from app.modules.productos.modelsproducto import Producto, Categoria, Precio, Stock, Bodega
 from app.modules.proveedores.models_proveedor import Proveedor
 from app.modules.inventario.models_inventario import Ingreso, EstadoItems, Items, Estado_Ingreso
+from app.modules.clientes.modelsclientes import Cliente
 
 # Configuración de Alembic
 config = context.config

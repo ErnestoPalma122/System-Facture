@@ -7,6 +7,7 @@ from app.modules.usuarios.schemas import UsuarioCreate, UsuarioUpdate
 from passlib.context import CryptContext
 import logging
 
+#Garantiza que el hasheo de la contraseña sea seguro y compatible con bcrypt en todo el sistema.
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -73,15 +74,18 @@ def crear_usuario(db: Session, usuario: UsuarioCreate):
     logger.info("=" * 60)
     
     db_usuario = get_usuario_by_email(db, usuario.email)
+    #verifica si el correo sea unico, ya que no puede repetirse, si ya existe.
     if db_usuario:
         logger.error(f"❌ ERROR: El email {usuario.email} ya está registrado")
         raise ValueError(f"El email {usuario.email} ya está registrado")
     
     logger.info("🔐 Hasheando contraseña...")
+    #Toma la contraseña  en texto plano, y la convierte en un hash seguro para almacenarla en la base de datos.
     hashed_password = pwd_context.hash(usuario.password)
     logger.info(f"✅ Contraseña hasheada: {hashed_password[:20]}...")
     
     logger.info("📝 Creando objeto Usuario...")
+    #Crea un nuevo objeto de usuario con los datos proporcionados.
     db_usuario = Usuario(
         nombre=usuario.nombre,
         email=usuario.email,
@@ -94,6 +98,7 @@ def crear_usuario(db: Session, usuario: UsuarioCreate):
     
     logger.info(f"📦 Objeto creado: {db_usuario}")
     
+    #Intenta guardar el nuevo usuario en la base de datos, manejando posibles errores de integridad o de base de datos.
     try:
         logger.info("💾 Guardando en base de datos...")
         db.add(db_usuario)
@@ -118,7 +123,7 @@ def actualizar_usuario(db: Session, usuario_id: int, usuario: UsuarioUpdate):
     logger.info("=" * 60)
     logger.info(f"🔄 INICIANDO ACTUALIZACIÓN DE USUARIO ID: {usuario_id}")
     logger.info("=" * 60)
-    
+
     db_usuario = get_usuario_by_id(db, usuario_id)
     if not db_usuario:
         logger.error(f"❌ ERROR: Usuario con ID {usuario_id} NO encontrado")
@@ -132,30 +137,36 @@ def actualizar_usuario(db: Session, usuario_id: int, usuario: UsuarioUpdate):
     logger.info(f"   - Departamento ID: {db_usuario.departamento_id}")
     logger.info(f"   - Rol ID: {db_usuario.rol_id}")
     
+    #Crea una Variable que contiene los datos que se van a actualizar.
     update_data = usuario.dict(exclude_unset=True)
+
     logger.info(f"📝 Datos RECIBIDOS para actualizar: {update_data}")
     
     # Campos que NO se pueden actualizar desde este endpoint
     campos_protegidos = ['estado', 'password_hash', 'created_at', 'created_by']
-    
+
+    #Verifica con la Variable los datos que se van a proteger, si se intenta actualizar alguno de estos campos, se genera un error y no se permite la actualización.
     for campo in campos_protegidos:
         if campo in update_data:
             logger.error(f"❌ ERROR: Intento de actualizar campo protegido: {campo}")
             raise ValueError(f"No se puede actualizar el campo '{campo}' desde este endpoint.")
-    
+        
+    #crea un listado de los campos que se van a actualizar, y los va mostrando en el log, para tener un registro de los cambios realizados.
     campos_actualizados = []
     for field, value in update_data.items():
         valor_anterior = getattr(db_usuario, field)
         setattr(db_usuario, field, value)
         campos_actualizados.append(f"{field}: {valor_anterior} → {value}")
         logger.info(f"   ✅ {field}: {valor_anterior} → {value}")
-    
+
+    #Verifica si se ingresaron campos para actualizar, si no se ingresaron campos, se genera un mensaje de advertencia y no se realiza ninguna actualización.
     if not campos_actualizados:
         logger.warning("⚠️ No se proporcionaron campos para actualizar")
         return db_usuario
     
     logger.info(f"📊 Campos actualizados: {', '.join(campos_actualizados)}")
-    
+
+    #Guarda los cambios en la base de datos.
     try:
         logger.info("💾 Guardando cambios en base de datos...")
         db.commit()
@@ -190,6 +201,7 @@ def activar_usuario(db: Session, usuario_id: int):
     logger.info("🔍 PASO 1: Consultando estado actual del usuario...")
     usuario_antes = get_usuario_by_id(db, usuario_id)
     
+    #verifica si el usuario existe.
     if not usuario_antes:
         logger.error(f"❌ ERROR: Usuario ID={usuario_id} NO encontrado")
         raise ValueError(f"Usuario con ID {usuario_id} no encontrado")
@@ -198,7 +210,8 @@ def activar_usuario(db: Session, usuario_id: int):
     logger.info(f"   - ID: {usuario_antes.id}")
     logger.info(f"   - Nombre: {usuario_antes.nombre}")
     logger.info(f"   - Estado: {usuario_antes.estado}")
-    
+
+    #Luego de verificar que el usuario existe, verifica que este es activo, si ya esta activo, genera un mensaje de advertencia y no realiza ningún cambio.
     if usuario_antes.estado == EstadoUsuario.ACTIVO:
         logger.warning(f"⚠️ Usuario ID={usuario_id} YA está ACTIVO")
         return {
@@ -210,6 +223,7 @@ def activar_usuario(db: Session, usuario_id: int):
     logger.info("🔄 PASO 3: Realizando cambio de estado...")
     logger.info(f"   - Cambiando estado: {usuario_antes.estado} → ACTIVO")
     
+    #Intenta Guardar el cambio en la base de datos, de el estado del usuario a ACTIVO.
     try:
         usuario_antes.estado = EstadoUsuario.ACTIVO
         db.commit()
@@ -220,12 +234,15 @@ def activar_usuario(db: Session, usuario_id: int):
         raise ValueError(f"Error al activar usuario: {str(e)}")
     
     logger.info("🔍 PASO 4: Verificando que el cambio se realizó correctamente...")
+
+    #Mediante otra consulta a la base de datos, verifica que el cambio se haya realizado correctamente, y que el estado del usuario ahora sea ACTIVO.
     usuario_despues = get_usuario_by_id(db, usuario_id)
-    
+
     logger.info(f"📊 Estado DESPUÉS del cambio:")
     logger.info(f"   - ID: {usuario_despues.id}")
     logger.info(f"   - Estado: {usuario_despues.estado}")
-    
+
+    #Verifica si el susuario esta activado
     if usuario_despues.estado == EstadoUsuario.ACTIVO:
         logger.info("=" * 60)
         logger.info(f"✅ USUARIO ACTIVADO EXITOSAMENTE")
@@ -245,7 +262,7 @@ def activar_usuario(db: Session, usuario_id: int):
 
 
 
-## Funcion para desactivar usuarios DESACTIVAR USUARIO
+#  Funcion para desactivar usuarios DESACTIVAR USUARIO
 def desactivar_usuario(db: Session, usuario_id: int):
     """Desactivar usuario con verificación completa"""
     logger.info("=" * 60)
@@ -253,6 +270,8 @@ def desactivar_usuario(db: Session, usuario_id: int):
     logger.info("=" * 60)
     
     logger.info("🔍 PASO 1: Consultando estado actual del usuario...")
+
+    #Verifica si el usuario existe.
     usuario_antes = get_usuario_by_id(db, usuario_id)
     
     if not usuario_antes:
@@ -264,6 +283,7 @@ def desactivar_usuario(db: Session, usuario_id: int):
     logger.info(f"   - Nombre: {usuario_antes.nombre}")
     logger.info(f"   - Estado: {usuario_antes.estado}")
     
+    #Verifica si el usuario ya esta desactivado.
     if usuario_antes.estado == EstadoUsuario.INACTIVO:
         logger.warning(f"⚠️ Usuario ID={usuario_id} YA está INACTIVO")
         return {
@@ -275,6 +295,7 @@ def desactivar_usuario(db: Session, usuario_id: int):
     logger.info("🔄 PASO 3: Realizando cambio de estado...")
     logger.info(f"   - Cambiando estado: {usuario_antes.estado} → INACTIVO")
     
+    #Trata de guardar los cambios del estado en la base datos
     try:
         usuario_antes.estado = EstadoUsuario.INACTIVO
         db.commit()
@@ -291,6 +312,7 @@ def desactivar_usuario(db: Session, usuario_id: int):
     logger.info(f"   - ID: {usuario_despues.id}")
     logger.info(f"   - Estado: {usuario_despues.estado}")
     
+    #verifica si el cambio de estado se el usuario se ha hecho efectivo en la base de datos.
     if usuario_despues.estado == EstadoUsuario.INACTIVO:
         logger.info("=" * 60)
         logger.info(f"✅ USUARIO DESACTIVADO EXITOSAMENTE")
@@ -317,6 +339,7 @@ def cambiar_contrasena(db: Session, usuario_id: int, contrasena_actual: str, con
     logger.info(f"🔐 INICIANDO CAMBIO DE CONTRASEÑA para usuario ID: {usuario_id}")
     logger.info("=" * 60)
     
+    #verifica si el usuario existe en la base de datos.
     db_usuario = get_usuario_by_id(db, usuario_id)
     if not db_usuario:
         logger.error(f"❌ ERROR: Usuario con ID {usuario_id} NO encontrado")
@@ -332,6 +355,7 @@ def cambiar_contrasena(db: Session, usuario_id: int, contrasena_actual: str, con
     logger.info(f"   - Nombre: {db_usuario.nombre}")
     logger.info(f"   - Estado: {db_usuario.estado}")
     
+    #verifica si la contrseña actual del usuario sea corecta.
     logger.info("🔍 Verificando contraseña actual...")
     if not pwd_context.verify(contrasena_actual, db_usuario.password_hash):
         logger.error("❌ ERROR: La contraseña actual es INCORRECTA")
@@ -339,17 +363,20 @@ def cambiar_contrasena(db: Session, usuario_id: int, contrasena_actual: str, con
     
     logger.info("✅ Contraseña actual verificada correctamente")
     
+    #Luego verifica si la contraseña nueva no sea igual a la actual.
     if contrasena_actual == contrasena_nueva:
         logger.warning("⚠️ La nueva contraseña es igual a la actual")
         raise ValueError("La nueva contraseña debe ser diferente a la actual")
     
     logger.info("🔐 Hasheando nueva contraseña...")
+    #Convierte la nueva contraseña en un hash seguro para almacenarla en la base de datos.
     hashed_nueva = pwd_context.hash(contrasena_nueva)
     logger.info(f"✅ Nueva contraseña hasheada: {hashed_nueva[:20]}...")
     
     logger.info("💾 Actualizando contraseña en base de datos...")
+
+    #Con una variable temporal, guarda el hash de la nueva contraseña en la base de datos, y trata de guardar los cambios.
     db_usuario.password_hash = hashed_nueva
-    
     try:
         db.commit()
         db.refresh(db_usuario)
@@ -368,7 +395,7 @@ def cambiar_contrasena(db: Session, usuario_id: int, contrasena_actual: str, con
         raise ValueError(f"Error al cambiar contraseña: {str(e)}")
 
 
-# Funcion para eliminar usuatrios ELIMINAR USAURIOS
+# Funcion para eliminar usuarios ELIMINAR USAURIOS
 def eliminar_usuario(db: Session, usuario_id: int, super_admin_id: int):
     """
     Eliminar usuario PERMANENTEMENTE de la base de datos (HARD DELETE).
@@ -488,8 +515,10 @@ from app.modules.usuarios.schemas import DepartamentoCreate, DepartamentoUpdate
 def get_departamento_by_id(db: Session, departamento_id: int):
     """Obtener departamento por ID con logging"""
     logger.info(f"🔍 Buscando departamento con ID: {departamento_id}")
+    #busca en la tabla departamento el id proporcionado.
     departamento = db.query(Departamento).filter(Departamento.id == departamento_id).first()
     
+    #mensajes para determinar si el departamento existe o no.
     if departamento:
         logger.info(f"✅ Departamento encontrado: ID={departamento.id}, Nombre={departamento.nombre}")
     else:
@@ -502,8 +531,10 @@ def get_departamento_by_id(db: Session, departamento_id: int):
 def get_departamento_by_nombre(db: Session, nombre: str):
     """Obtener departamento por nombre con logging"""
     logger.info(f"🔍 Buscando departamento con nombre: {nombre}")
+    #busca en la tabla departamento el nombre proporcionado.
     departamento = db.query(Departamento).filter(Departamento.nombre == nombre).first()
     
+    #mensajes para determinar si el departamento existe o no.
     if departamento:
         logger.info(f"✅ Departamento encontrado: ID={departamento.id}, Nombre={departamento.nombre}")
     else:
@@ -577,6 +608,7 @@ def actualizar_departamento(db: Session, departamento_id: int, departamento: Dep
     logger.info(f"🔄 INICIANDO ACTUALIZACIÓN DE DEPARTAMENTO ID: {departamento_id}")
     logger.info("=" * 60)
     
+    #Hace una consulta con el id departamento
     db_departamento = get_departamento_by_id(db, departamento_id)
     if not db_departamento:
         logger.error(f"❌ ERROR: Departamento con ID {departamento_id} NO encontrado")

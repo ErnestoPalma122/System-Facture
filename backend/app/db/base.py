@@ -33,6 +33,10 @@ from app.modules.inventario.models_inventario import(
     Items,
     Estado_Ingreso
 )
+#Importa modelo Clientes
+from app.modules.clientes.modelsclientes import(
+    Cliente
+)
 
 #Lista de Exportaciones
 __all__ = [
@@ -51,5 +55,6 @@ __all__ = [
     "Ingreso",
     "EstadoItems",
     "Items",
-    "Estado_Ingreso"
+    "Estado_Ingreso",
+    "Cliente"
 ]

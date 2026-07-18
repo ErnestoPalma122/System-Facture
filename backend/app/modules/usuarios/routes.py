@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session
 from app.core.rate_limiter import rate_limit
 from app.core.config import settings
 from app.core.database import get_db
+# validan tokens, y inyecta roles.
 from app.core.dependencies import get_current_user, require_role
 from app.modules.usuarios.models import Usuario
+
 from app.modules.usuarios.schemas import (
     DepartamentoCreate,
     DepartamentoListResponse,
@@ -21,9 +23,9 @@ from app.modules.usuarios.schemas import (
     CambiarContrasenaRequest,
     UsuarioResponse,
     UsuarioListResponse,
-    UsuarioUpdateResponse,
     MessageResponse
 )
+
 from app.modules.usuarios.services import (
     get_usuarios,
     get_usuario_by_id,
@@ -48,24 +50,39 @@ router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 #Este endpoint muestra de modo lista los usuarios guardados en la base de datos
 @router.get(
     "/listar",
+    #llama una funcion de Schemas haciendo que lo que se responda tenga una forma exacta,
+    #funciona para la documentacion de swagger
     response_model=UsuarioListResponse,
+    #estatus HTTP de todo bien tendra un codigo de 200
     status_code=status.HTTP_200_OK,
+    #Define el limite de consultas para el end point
     dependencies=[Depends(rate_limit(
-        limit=settings.RATE_LIMIT_DEFAULT,
-        window=settings.RATE_LIMIT_WINDOW,
+        limit=settings.RATE_LIMIT_DEFAULT, #---define el limites de intentos
+        window=settings.RATE_LIMIT_WINDOW, #---define el tiempo para esos intentos
         key_prefix="usuarios_listar"
     ))],
+    #Solo es texto para la documentacion de swagger.
     summary="Listar usuarios",
     description="Obtiene una lista de todos los usuarios del sistema. Requiere autenticación."
 )
+#funcion que maneja la peticion /listar
 def listar_usuarios(
+    #Extrae la peticion HTTP y lo inyecta en la funcion
     request: Request,
+    #Inyeccion de la conexion de la base de datos, no crea la conexion, si no que lo inyecta
     db: Session = Depends(get_db),
+    #Capa de seguridad con JWT y/o Roles.
     current_user: Usuario = Depends(get_current_user),
+    #Es un parametro de consulta, que si no se llena automaticamnte envia 0.
     skip: int = 0,
+    #Define el limite de consulta, para que el servior no caiga.
     limit: int = 100,
+    #Esta variable puede ser String o o None.
     estado: Optional[str] = None  # ← CAMBIADO de 'activo' a 'estado'
+
+#
 ):
+    #Informacion de documentacion interna
     """
     Endpoint para listar usuarios con paginación y filtros.
     
@@ -77,39 +94,53 @@ def listar_usuarios(
     Rate limit: 100 solicitudes por minuto (configuración por defecto).
     Protección: Requiere autenticación JWT.
     """
+    
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: GET /usuarios/listar")
     logger.info(f"👤 Usuario autenticado: ID={current_user.id}, Email={current_user.email}")
     logger.info(f"📊 Parámetros: skip={skip}, limit={limit}, estado={estado}")
     logger.info("=" * 60)
     
+    #Llama a services(get_usuarios) y inyecta la consulta SQL.
     usuarios = get_usuarios(db, skip=skip, limit=limit, estado=estado)  # ← CAMBIADO
     logger.info(f"✅ Retornando {len(usuarios)} usuarios")
-    
+
+    #Llama a schemas(UsuarioListResponse)
     return UsuarioListResponse(
+        #Funcion que cuanta los elementos de una lista y los manda junto con: UsuarioListResponse
         total=len(usuarios),
+        #La consulta lo manda junto con: UsuarioListResponse
         usuarios=usuarios
     )
 
 # Este endponit busca a un usuario espesifico por el ID en la base de datos
 @router.get(
     "/obtener/{usuario_id}",
+    #llama una funcion de Schemas haciendo que lo que se responda tenga una forma exacta,
+    #funciona para la documentacion de swagger
     response_model=UsuarioResponse,
+    #estatus HTTP de todo bien tendra un codigo de 200
     status_code=status.HTTP_200_OK,
+    #Define el limite de consultas
     dependencies=[Depends(rate_limit(
-        limit=settings.RATE_LIMIT_DEFAULT,
-        window=settings.RATE_LIMIT_WINDOW,
+        limit=settings.RATE_LIMIT_DEFAULT, #---define el limites de intentos
+        window=settings.RATE_LIMIT_WINDOW, #---define el tiempo para esos intentos
         key_prefix="usuarios_obtener"
     ))],
     summary="Obtener usuario por ID",
     description="Obtiene los detalles completos de un usuario específico por su ID. Requiere autenticación."
 )
 def obtener_usuario(
+    #Extrae la peticion HTTP y lo inyecta en la funcion
     request: Request,
+    #Es un parametro que se convierte a entero, para que la URL lo pueda leer y hacer la consulta.
     usuario_id: int,
+    #Inyeccion de la conexion de la base de datos, no crea la conexion, si no que lo inyecta
     db: Session = Depends(get_db),
+    #Capa de seguridad con JWT y/o Roles.
     current_user: Usuario = Depends(get_current_user)
 ):
+    #Informacion de documentacion interna
     """
     Endpoint para obtener un usuario específico por ID.
     
@@ -123,8 +154,10 @@ def obtener_usuario(
     logger.info(f"👤 Usuario autenticado: ID={current_user.id}")
     logger.info("=" * 60)
     
+    #Llama a get_usuario_by_id de services, e inyecta informacion de la base de datos
     usuario = get_usuario_by_id(db, usuario_id)
     
+    #Hace una validacion de si encuentra el usuario o no 
     if not usuario:
         logger.error(f"❌ Usuario ID={usuario_id} NO encontrado")
         raise HTTPException(
@@ -138,8 +171,12 @@ def obtener_usuario(
 #este endpoint Crea usuarios 
 @router.post(
     "/crear",
-    response_model=UsuarioResponse,
+    #llama una funcion de Schemas haciendo que lo que se responda tenga una forma exacta,
+    #funciona para la documentacion de swagger    
+    response_model = UsuarioResponse,
+    #estatus HTTP de cracion exitosa con un codigo de 201
     status_code=status.HTTP_201_CREATED,
+    #Define el limite de consultas
     dependencies=[Depends(rate_limit(
         limit=10,
         window=60,
@@ -150,9 +187,13 @@ def obtener_usuario(
     description="Crea un nuevo usuario en el sistema. Solo administradores pueden crear usuarios."
 )
 def crear_usuario_endpoint(
+    #Extrae la peticion HTTP y lo inyecta en la funcion
     request: Request,
+    #Toma el body de UsuarioCreate de Schemas
     usuario: UsuarioCreate,
+    #Inyeccion de la conexion de la base de datos, no crea la conexion, si no que lo inyecta
     db: Session = Depends(get_db),
+    #Capa de seguridad con JWT y/o Roles.
     current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"]))
 ):
     """
@@ -170,7 +211,9 @@ def crear_usuario_endpoint(
     logger.info(f"👤 Nombre del nuevo usuario: {usuario.nombre}")
     logger.info("=" * 60)
     
+    #Es un bloque de intento...
     try:
+        #Llama a la funcion crear_usuario de services
         db_usuario = crear_usuario(db, usuario)
         logger.info(f"✅ Usuario creado exitosamente: ID={db_usuario.id}")
         return db_usuario
@@ -216,6 +259,7 @@ def actualizar_usuario_endpoint(
     logger.info(f"📝 Datos recibidos: {usuario.dict(exclude_unset=True)}")
     logger.info("=" * 60)
     
+
     try:
         db_usuario = actualizar_usuario(db, usuario_id, usuario)
         
@@ -299,6 +343,7 @@ def eliminar_usuario_endpoint(
 #Este endpoint activa usuarios desactivados mediante su id
 @router.patch(
     "/activar/{usuario_id}",
+
     response_model=MessageResponse,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(rate_limit(

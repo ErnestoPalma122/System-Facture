@@ -28,10 +28,12 @@ router = APIRouter(prefix="/proveedores", tags=["Proveedores"])
 # ===========================================================
 # ENDPOINTS DE PROVEEDORES (PROTEGIDOS CON JWT)
 # ===========================================================
-
+#el enpont se espesializa en listar los probeedores
 @router.get(
     "/listar",
+    #Llama a ProveedorListResponse de Shemas lo que hace que responda de una maera explicita.
     response_model=ProveedorListResponse,
+    #Responde con un codigo HTTP de ok que es 200
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(rate_limit(
         limit=settings.RATE_LIMIT_DEFAULT,

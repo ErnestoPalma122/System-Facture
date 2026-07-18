@@ -28,6 +28,7 @@ async def get_current_user(
     Uso en endpoints:
         current_user: Usuario = Depends(get_current_user)
     """
+    
     logger.info("=" * 60)
     logger.info("🔐 VALIDANDO TOKEN JWT")
     logger.info("=" * 60)
