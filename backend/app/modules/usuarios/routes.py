@@ -1,12 +1,12 @@
-#C:\Users\PC\Desktop\Factu\backend\app\modules\usuarios\routes.py
+# C:\Users\PC\Desktop\Factu\backend\app\modules\usuarios\routes.py
 from typing import Optional
 from fastapi import APIRouter, Depends, Request, status, HTTPException
 from sqlalchemy.orm import Session
 from app.core.rate_limiter import rate_limit
 from app.core.config import settings
 from app.core.database import get_db
-# validan tokens, y inyecta roles.
-from app.core.dependencies import get_current_user, require_role
+# ✅ AGREGADO: require_permission
+from app.core.dependencies import get_current_user, require_role, require_permission
 from app.modules.usuarios.models import Usuario
 
 from app.modules.usuarios.schemas import (
@@ -40,124 +40,72 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
-
 # ===========================================================
-# ENDPOINTS DE USUARIOS (PROTEGIDOS CON JWT)
-# Rutas descriptivas para mayor control
+# ENDPOINTS DE USUARIOS (PROTEGIDOS CON PERMISOS)
 # ===========================================================
 
-
-#Este endpoint muestra de modo lista los usuarios guardados en la base de datos
 @router.get(
     "/listar",
-    #llama una funcion de Schemas haciendo que lo que se responda tenga una forma exacta,
-    #funciona para la documentacion de swagger
     response_model=UsuarioListResponse,
-    #estatus HTTP de todo bien tendra un codigo de 200
     status_code=status.HTTP_200_OK,
-    #Define el limite de consultas para el end point
     dependencies=[Depends(rate_limit(
-        limit=settings.RATE_LIMIT_DEFAULT, #---define el limites de intentos
-        window=settings.RATE_LIMIT_WINDOW, #---define el tiempo para esos intentos
+        limit=settings.RATE_LIMIT_DEFAULT,
+        window=settings.RATE_LIMIT_WINDOW,
         key_prefix="usuarios_listar"
     ))],
-    #Solo es texto para la documentacion de swagger.
     summary="Listar usuarios",
-    description="Obtiene una lista de todos los usuarios del sistema. Requiere autenticación."
+    description="Obtiene una lista de usuarios. Requiere permiso 'usuario:leer'."
 )
-#funcion que maneja la peticion /listar
 def listar_usuarios(
-    #Extrae la peticion HTTP y lo inyecta en la funcion
     request: Request,
-    #Inyeccion de la conexion de la base de datos, no crea la conexion, si no que lo inyecta
     db: Session = Depends(get_db),
-    #Capa de seguridad con JWT y/o Roles.
-    current_user: Usuario = Depends(get_current_user),
-    #Es un parametro de consulta, que si no se llena automaticamnte envia 0.
+    current_user: Usuario = Depends(require_permission("usuario:leer")),
     skip: int = 0,
-    #Define el limite de consulta, para que el servior no caiga.
-    limit: int = 100,
-    #Esta variable puede ser String o o None.
-    estado: Optional[str] = None  # ← CAMBIADO de 'activo' a 'estado'
-
-#
+    limit: int = 10, # Por defecto muestra 10
+    busqueda: Optional[str] = None, # <-- NUEVO PARÁMETRO
+    estado: Optional[str] = None
 ):
-    #Informacion de documentacion interna
-    """
-    Endpoint para listar usuarios con paginación y filtros.
-    
-    Ruta: GET /usuarios/listar
-    
-    Parámetros de filtro:
-    - estado: ACTIVO, INACTIVO, BLOQUEADO, PENDIENTE (opcional)
-    
-    Rate limit: 100 solicitudes por minuto (configuración por defecto).
-    Protección: Requiere autenticación JWT.
-    """
-    
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: GET /usuarios/listar")
-    logger.info(f"👤 Usuario autenticado: ID={current_user.id}, Email={current_user.email}")
-    logger.info(f"📊 Parámetros: skip={skip}, limit={limit}, estado={estado}")
+    logger.info(f"👤 Usuario autenticado: ID={current_user.id}")
+    logger.info(f"📊 Parámetros: skip={skip}, limit={limit}, busqueda={busqueda}, estado={estado}")
     logger.info("=" * 60)
     
-    #Llama a services(get_usuarios) y inyecta la consulta SQL.
-    usuarios = get_usuarios(db, skip=skip, limit=limit, estado=estado)  # ← CAMBIADO
+    usuarios = get_usuarios(db, skip=skip, limit=limit, busqueda=busqueda, estado=estado)
     logger.info(f"✅ Retornando {len(usuarios)} usuarios")
 
-    #Llama a schemas(UsuarioListResponse)
     return UsuarioListResponse(
-        #Funcion que cuanta los elementos de una lista y los manda junto con: UsuarioListResponse
         total=len(usuarios),
-        #La consulta lo manda junto con: UsuarioListResponse
         usuarios=usuarios
     )
 
-# Este endponit busca a un usuario espesifico por el ID en la base de datos
+
 @router.get(
     "/obtener/{usuario_id}",
-    #llama una funcion de Schemas haciendo que lo que se responda tenga una forma exacta,
-    #funciona para la documentacion de swagger
     response_model=UsuarioResponse,
-    #estatus HTTP de todo bien tendra un codigo de 200
     status_code=status.HTTP_200_OK,
-    #Define el limite de consultas
     dependencies=[Depends(rate_limit(
-        limit=settings.RATE_LIMIT_DEFAULT, #---define el limites de intentos
-        window=settings.RATE_LIMIT_WINDOW, #---define el tiempo para esos intentos
+        limit=settings.RATE_LIMIT_DEFAULT,
+        window=settings.RATE_LIMIT_WINDOW,
         key_prefix="usuarios_obtener"
     ))],
     summary="Obtener usuario por ID",
-    description="Obtiene los detalles completos de un usuario específico por su ID. Requiere autenticación."
+    description="Obtiene los detalles completos de un usuario específico por su ID. Requiere permiso 'usuario:leer'."
 )
 def obtener_usuario(
-    #Extrae la peticion HTTP y lo inyecta en la funcion
     request: Request,
-    #Es un parametro que se convierte a entero, para que la URL lo pueda leer y hacer la consulta.
     usuario_id: int,
-    #Inyeccion de la conexion de la base de datos, no crea la conexion, si no que lo inyecta
     db: Session = Depends(get_db),
-    #Capa de seguridad con JWT y/o Roles.
-    current_user: Usuario = Depends(get_current_user)
+    # ✅ CAMBIO: Ahora usa require_permission
+    current_user: Usuario = Depends(require_permission("usuario:leer"))
 ):
-    #Informacion de documentacion interna
-    """
-    Endpoint para obtener un usuario específico por ID.
-    
-    Ruta: GET /usuarios/obtener/{usuario_id}
-    
-    Rate limit: 100 solicitudes por minuto.
-    Protección: Requiere autenticación JWT.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: GET /usuarios/obtener/{usuario_id}")
     logger.info(f"👤 Usuario autenticado: ID={current_user.id}")
     logger.info("=" * 60)
     
-    #Llama a get_usuario_by_id de services, e inyecta informacion de la base de datos
     usuario = get_usuario_by_id(db, usuario_id)
     
-    #Hace una validacion de si encuentra el usuario o no 
     if not usuario:
         logger.error(f"❌ Usuario ID={usuario_id} NO encontrado")
         raise HTTPException(
@@ -167,16 +115,12 @@ def obtener_usuario(
     
     logger.info(f"✅ Retornando usuario ID={usuario.id}, Nombre={usuario.nombre}")
     return usuario
-#---------------------------------------------------------------------------------------
-#este endpoint Crea usuarios 
+
+
 @router.post(
     "/crear",
-    #llama una funcion de Schemas haciendo que lo que se responda tenga una forma exacta,
-    #funciona para la documentacion de swagger    
-    response_model = UsuarioResponse,
-    #estatus HTTP de cracion exitosa con un codigo de 201
+    response_model=UsuarioResponse,
     status_code=status.HTTP_201_CREATED,
-    #Define el limite de consultas
     dependencies=[Depends(rate_limit(
         limit=10,
         window=60,
@@ -184,26 +128,15 @@ def obtener_usuario(
         error_message="Demasiadas solicitudes de creación de usuarios. Espera 1 minuto."
     ))],
     summary="Crear nuevo usuario",
-    description="Crea un nuevo usuario en el sistema. Solo administradores pueden crear usuarios."
+    description="Crea un nuevo usuario en el sistema. Requiere permiso 'usuario:crear'."
 )
 def crear_usuario_endpoint(
-    #Extrae la peticion HTTP y lo inyecta en la funcion
     request: Request,
-    #Toma el body de UsuarioCreate de Schemas
     usuario: UsuarioCreate,
-    #Inyeccion de la conexion de la base de datos, no crea la conexion, si no que lo inyecta
     db: Session = Depends(get_db),
-    #Capa de seguridad con JWT y/o Roles.
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"]))
+    # ✅ CAMBIO: Ahora usa require_permission en lugar de require_role
+    current_user: Usuario = Depends(require_permission("usuario:crear"))
 ):
-    """
-    Endpoint para crear un nuevo usuario.
-    
-    Ruta: POST /usuarios/crear
-    
-    Rate limit: 10 creaciones por minuto.
-    Protección: Solo SUPER_ADMIN o ADMIN.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: POST /usuarios/crear")
     logger.info(f"👤 Creado por: ID={current_user.id}, Email={current_user.email}")
@@ -211,9 +144,7 @@ def crear_usuario_endpoint(
     logger.info(f"👤 Nombre del nuevo usuario: {usuario.nombre}")
     logger.info("=" * 60)
     
-    #Es un bloque de intento...
     try:
-        #Llama a la funcion crear_usuario de services
         db_usuario = crear_usuario(db, usuario)
         logger.info(f"✅ Usuario creado exitosamente: ID={db_usuario.id}")
         return db_usuario
@@ -224,7 +155,7 @@ def crear_usuario_endpoint(
             detail=str(e)
         )
 
-# Actualizar campos en los usaurios
+
 @router.put(
     "/actualizar/{usuario_id}",
     response_model=UsuarioResponse,
@@ -236,30 +167,22 @@ def crear_usuario_endpoint(
         error_message="Demasiadas solicitudes de actualización. Espera 1 minuto."
     ))],
     summary="Actualizar usuario completo",
-    description="Actualiza todos los datos de un usuario existente. Solo administradores."
+    description="Actualiza todos los datos de un usuario existente. Requiere permiso 'usuario:actualizar'."
 )
 def actualizar_usuario_endpoint(
     request: Request,
     usuario_id: int,
     usuario: UsuarioUpdate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"]))
+    # ✅ CAMBIO: Ahora usa require_permission
+    current_user: Usuario = Depends(require_permission("usuario:actualizar"))
 ):
-    """
-    Endpoint para actualizar un usuario existente.
-    
-    Ruta: PUT /usuarios/actualizar/{usuario_id}
-    
-    Rate limit: 20 actualizaciones por minuto.
-    Protección: Solo SUPER_ADMIN o ADMIN.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: PUT /usuarios/actualizar/{usuario_id}")
     logger.info(f"👤 Actualizado por: ID={current_user.id}, Email={current_user.email}")
-    logger.info(f"📝 Datos recibidos: {usuario.dict(exclude_unset=True)}")
+    logger.info(f"📝 Datos recibidos: {usuario.model_dump(exclude_unset=True)}") # Actualizado a model_dump para Pydantic V2
     logger.info("=" * 60)
     
-
     try:
         db_usuario = actualizar_usuario(db, usuario_id, usuario)
         
@@ -279,7 +202,7 @@ def actualizar_usuario_endpoint(
             detail=str(e)
         )
 
-#este endpoint borra permanentemente usuarios dentro de la base de datos
+
 @router.delete(
     "/eliminar/{usuario_id}",
     response_model=MessageResponse,
@@ -291,37 +214,19 @@ def actualizar_usuario_endpoint(
         error_message="Demasiadas solicitudes de eliminación. Espera 1 minuto."
     ))],
     summary="💀 Eliminar usuario PERMANENTEMENTE",
-    description=(
-        "⚠️ ELIMINACIÓN PERMANENTE: Borra el usuario de la base de datos de forma irreversible. "
-        "Solo SUPER_ADMIN puede ejecutar esta acción. "
-        "Para desactivar un usuario sin eliminarlo, usa PATCH /usuarios/desactivar/{usuario_id}."
-    )
+    description="ELIMINACIÓN PERMANENTE. Solo SUPER_ADMIN (mantenido por rol por ser acción crítica)."
 )
 def eliminar_usuario_endpoint(
     request: Request,
     usuario_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN"]))  # ← SOLO SUPER_ADMIN
+    # ⚠️ NOTA: Se mantiene require_role porque "usuario:eliminar" no está en tu lista de permisos seed.
+    current_user: Usuario = Depends(require_role(["SUPER_ADMIN"]))
 ):
-    """
-    Endpoint para eliminar PERMANENTEMENTE un usuario de la base de datos.
-    
-    Ruta: DELETE /usuarios/eliminar/{usuario_id}
-    
-    SEGURIDAD:
-    - Solo SUPER_ADMIN puede ejecutar esta acción
-    - No puede eliminarse a sí mismo
-    - No puede eliminar al último SUPER_ADMIN del sistema
-    - Elimina también todas las sesiones asociadas
-    
-    Rate limit: 5 eliminaciones por minuto (muy restrictivo).
-    Protección: SOLO SUPER_ADMIN.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: DELETE /usuarios/eliminar/{usuario_id}")
     logger.info(f"💀 ACCIÓN: ELIMINACIÓN PERMANENTE (HARD DELETE)")
     logger.info(f"👤 Ejecutado por: ID={current_user.id}, Email={current_user.email}")
-    logger.info(f"🎭 Rol del ejecutor: {current_user.rol.tipo.value if current_user.rol else 'Sin rol'}")
     logger.info("=" * 60)
     
     try:
@@ -340,10 +245,10 @@ def eliminar_usuario_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
-#Este endpoint activa usuarios desactivados mediante su id
+
+
 @router.patch(
     "/activar/{usuario_id}",
-
     response_model=MessageResponse,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(rate_limit(
@@ -353,28 +258,20 @@ def eliminar_usuario_endpoint(
         error_message="Demasiadas solicitudes. Espera 1 minuto."
     ))],
     summary="Activar usuario",
-    description="Activa un usuario que estaba desactivado. Solo administradores."
+    description="Activa un usuario que estaba desactivado. (Mantenido por rol, no hay permiso 'usuario:activar' en seed)."
 )
 def activar_usuario_endpoint(
     request: Request,
     usuario_id: int,
     db: Session = Depends(get_db),
+    # ⚠️ NOTA: Se mantiene require_role porque "usuario:activar" no está en tu lista de permisos seed.
     current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"]))
 ):
-    """
-    Endpoint para activar un usuario desactivado.
-    
-    Ruta: PATCH /usuarios/activar/{usuario_id}
-    
-    Rate limit: 10 solicitudes por minuto.
-    Protección: Solo SUPER_ADMIN o ADMIN.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: PATCH /usuarios/activar/{usuario_id}")
     logger.info(f"👤 Solicitado por: ID={current_user.id}, Email={current_user.email}")
     logger.info("=" * 60)
     
-    # Importar la función desde services
     from app.modules.usuarios.services import activar_usuario
     
     try:
@@ -394,7 +291,7 @@ def activar_usuario_endpoint(
             detail=str(e)
         )
 
-#Este endpoint desactiva usuarios activos dentro de la base de datos
+
 @router.patch(
     "/desactivar/{usuario_id}",
     response_model=MessageResponse,
@@ -406,35 +303,26 @@ def activar_usuario_endpoint(
         error_message="Demasiadas solicitudes. Espera 1 minuto."
     ))],
     summary="Desactivar usuario",
-    description="Desactiva un usuario sin eliminarlo permanentemente. Solo administradores."
+    description="Desactiva un usuario sin eliminarlo permanentemente. Requiere permiso 'usuario:desactivar'."
 )
 def desactivar_usuario_endpoint(
     request: Request,
     usuario_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"]))
+    # ✅ CAMBIO: Ahora usa require_permission
+    current_user: Usuario = Depends(require_permission("usuario:desactivar"))
 ):
-    """
-    Endpoint para desactivar un usuario.
-    
-    Ruta: PATCH /usuarios/desactivar/{usuario_id}
-    
-    Rate limit: 10 solicitudes por minuto.
-    Protección: Solo SUPER_ADMIN o ADMIN.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: PATCH /usuarios/desactivar/{usuario_id}")
     logger.info(f"👤 Solicitado por: ID={current_user.id}, Email={current_user.email}")
     logger.info("=" * 60)
     
-    # Importar la función desde services
     from app.modules.usuarios.services import desactivar_usuario
     
     try:
         resultado = desactivar_usuario(db=db, usuario_id=usuario_id)
         
         if not resultado["cambio_realizado"]:
-            
             logger.warning(f"⚠️ {resultado['mensaje']}")
             return MessageResponse(message=resultado["mensaje"])
         
@@ -447,12 +335,12 @@ def desactivar_usuario_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
-    
+
+
 # ===========================================================
-# ENDPOINTS DE DEPARTAMENTOS (PROTEGIDOS CON JWT)
+# ENDPOINTS DE DEPARTAMENTOS (PROTEGIDOS: SOLO ADMIN Y SUPER_ADMIN)
 # ===========================================================
 
-# Este endpoint muestra de modo lista los departamentos guardados en la base de datos
 @router.get(
     "/departamentos/listar",
     response_model=DepartamentoListResponse,
@@ -463,44 +351,28 @@ def desactivar_usuario_endpoint(
         key_prefix="departamentos_listar"
     ))],
     summary="Listar departamentos",
-    description="Obtiene una lista de todos los departamentos del sistema. Requiere autenticación."
+    description="Obtiene una lista de todos los departamentos. Solo ADMIN o SUPER_ADMIN."
 )
 def listar_departamentos(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])), # ✅ PROTEGIDO
     skip: int = 0,
     limit: int = 100,
     activo: Optional[bool] = None
 ):
-    """
-    Endpoint para listar departamentos con paginación y filtros.
-    
-    Ruta: GET /usuarios/departamentos/listar
-    
-    Parámetros de filtro:
-    - activo: true/false (opcional)
-    
-    Rate limit: 100 solicitudes por minuto (configuración por defecto).
-    Protección: Requiere autenticación JWT.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: GET /usuarios/departamentos/listar")
     logger.info(f"👤 Usuario autenticado: ID={current_user.id}, Email={current_user.email}")
-    logger.info(f"📊 Parámetros: skip={skip}, limit={limit}, activo={activo}")
     logger.info("=" * 60)
     
     from app.modules.usuarios.services import get_departamentos
     departamentos = get_departamentos(db, skip=skip, limit=limit, activo=activo)
     logger.info(f"✅ Retornando {len(departamentos)} departamentos")
     
-    return DepartamentoListResponse(
-        total=len(departamentos),
-        departamentos=departamentos
-    )
+    return DepartamentoListResponse(total=len(departamentos), departamentos=departamentos)
 
 
-# Este endpoint busca un departamento específico por el ID en la base de datos
 @router.get(
     "/departamentos/obtener/{departamento_id}",
     response_model=DepartamentoResponse,
@@ -511,22 +383,14 @@ def listar_departamentos(
         key_prefix="departamentos_obtener"
     ))],
     summary="Obtener departamento por ID",
-    description="Obtiene los detalles completos de un departamento específico por su ID. Requiere autenticación."
+    description="Obtiene los detalles de un departamento específico. Solo ADMIN o SUPER_ADMIN."
 )
 def obtener_departamento(
     request: Request,
     departamento_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user)
+    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])) # ✅ PROTEGIDO
 ):
-    """
-    Endpoint para obtener un departamento específico por ID.
-    
-    Ruta: GET /usuarios/departamentos/obtener/{departamento_id}
-    
-    Rate limit: 100 solicitudes por minuto.
-    Protección: Requiere autenticación JWT.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: GET /usuarios/departamentos/obtener/{departamento_id}")
     logger.info(f"👤 Usuario autenticado: ID={current_user.id}")
@@ -546,7 +410,6 @@ def obtener_departamento(
     return departamento
 
 
-# Este endpoint crea departamentos
 @router.post(
     "/departamentos/crear",
     response_model=DepartamentoResponse,
@@ -558,22 +421,14 @@ def obtener_departamento(
         error_message="Demasiadas solicitudes de creación de departamentos. Espera 1 minuto."
     ))],
     summary="Crear nuevo departamento",
-    description="Crea un nuevo departamento en el sistema. Solo administradores pueden crear departamentos."
+    description="Crea un nuevo departamento. Solo ADMIN o SUPER_ADMIN."
 )
 def crear_departamento_endpoint(
     request: Request,
     departamento: DepartamentoCreate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"]))
+    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])) # ✅ PROTEGIDO
 ):
-    """
-    Endpoint para crear un nuevo departamento.
-    
-    Ruta: POST /usuarios/departamentos/crear
-    
-    Rate limit: 10 creaciones por minuto.
-    Protección: Solo SUPER_ADMIN o ADMIN.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: POST /usuarios/departamentos/crear")
     logger.info(f"👤 Creado por: ID={current_user.id}, Email={current_user.email}")
@@ -587,13 +442,9 @@ def crear_departamento_endpoint(
         return db_departamento
     except ValueError as e:
         logger.error(f"❌ Error al crear departamento: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-# Actualizar campos en los departamentos
 @router.put(
     "/departamentos/actualizar/{departamento_id}",
     response_model=DepartamentoResponse,
@@ -605,55 +456,39 @@ def crear_departamento_endpoint(
         error_message="Demasiadas solicitudes de actualización. Espera 1 minuto."
     ))],
     summary="Actualizar departamento",
-    description="Actualiza los datos de un departamento existente. Solo administradores."
+    description="Actualiza los datos de un departamento existente. Solo ADMIN o SUPER_ADMIN."
 )
 def actualizar_departamento_endpoint(
     request: Request,
     departamento_id: int,
     departamento: DepartamentoUpdate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"]))
+    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])) # ✅ PROTEGIDO
 ):
-    """
-    Endpoint para actualizar un departamento existente.
-    
-    Ruta: PUT /usuarios/departamentos/actualizar/{departamento_id}
-    
-    Rate limit: 20 actualizaciones por minuto.
-    Protección: Solo SUPER_ADMIN o ADMIN.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: PUT /usuarios/departamentos/actualizar/{departamento_id}")
     logger.info(f"👤 Actualizado por: ID={current_user.id}, Email={current_user.email}")
-    logger.info(f"📝 Datos recibidos: {departamento.dict(exclude_unset=True)}")
     logger.info("=" * 60)
     
     from app.modules.usuarios.services import actualizar_departamento
     try:
         db_departamento = actualizar_departamento(db, departamento_id, departamento)
-        
         if not db_departamento:
-            logger.error(f"❌ Departamento ID={departamento_id} NO encontrado")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Departamento con ID {departamento_id} no encontrado"
             )
-        
         logger.info(f"✅ Departamento ID={departamento_id} actualizado exitosamente")
         return db_departamento
     except ValueError as e:
         logger.error(f"❌ Error al actualizar departamento: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ===========================================================
-# ENDPOINTS DE ROLES (PROTEGIDOS CON JWT)
+# ENDPOINTS DE ROLES (PROTEGIDOS: SOLO ADMIN Y SUPER_ADMIN)
 # ===========================================================
 
-# Este endpoint muestra de modo lista los roles guardados en la base de datos
 @router.get(
     "/roles/listar",
     response_model=RolListResponse,
@@ -664,44 +499,28 @@ def actualizar_departamento_endpoint(
         key_prefix="roles_listar"
     ))],
     summary="Listar roles",
-    description="Obtiene una lista de todos los roles del sistema. Requiere autenticación."
+    description="Obtiene una lista de todos los roles del sistema. Solo ADMIN o SUPER_ADMIN."
 )
 def listar_roles(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])), # ✅ PROTEGIDO
     skip: int = 0,
     limit: int = 100,
     activo: Optional[bool] = None
 ):
-    """
-    Endpoint para listar roles con paginación y filtros.
-    
-    Ruta: GET /usuarios/roles/listar
-    
-    Parámetros de filtro:
-    - activo: true/false (opcional)
-    
-    Rate limit: 100 solicitudes por minuto (configuración por defecto).
-    Protección: Requiere autenticación JWT.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: GET /usuarios/roles/listar")
     logger.info(f"👤 Usuario autenticado: ID={current_user.id}, Email={current_user.email}")
-    logger.info(f"📊 Parámetros: skip={skip}, limit={limit}, activo={activo}")
     logger.info("=" * 60)
     
     from app.modules.usuarios.services import get_roles
     roles = get_roles(db, skip=skip, limit=limit, activo=activo)
     logger.info(f"✅ Retornando {len(roles)} roles")
     
-    return RolListResponse(
-        total=len(roles),
-        roles=roles
-    )
+    return RolListResponse(total=len(roles), roles=roles)
 
 
-# Este endpoint busca un rol específico por el ID en la base de datos
 @router.get(
     "/roles/obtener/{rol_id}",
     response_model=RolResponse,
@@ -712,22 +531,14 @@ def listar_roles(
         key_prefix="roles_obtener"
     ))],
     summary="Obtener rol por ID",
-    description="Obtiene los detalles completos de un rol específico por su ID. Requiere autenticación."
+    description="Obtiene los detalles completos de un rol específico. Solo ADMIN o SUPER_ADMIN."
 )
 def obtener_rol(
     request: Request,
     rol_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user)
+    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])) # ✅ PROTEGIDO
 ):
-    """
-    Endpoint para obtener un rol específico por ID.
-    
-    Ruta: GET /usuarios/roles/obtener/{rol_id}
-    
-    Rate limit: 100 solicitudes por minuto.
-    Protección: Requiere autenticación JWT.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: GET /usuarios/roles/obtener/{rol_id}")
     logger.info(f"👤 Usuario autenticado: ID={current_user.id}")
@@ -747,7 +558,6 @@ def obtener_rol(
     return rol
 
 
-# Este endpoint crea roles
 @router.post(
     "/roles/crear",
     response_model=RolResponse,
@@ -759,22 +569,14 @@ def obtener_rol(
         error_message="Demasiadas solicitudes de creación de roles. Espera 1 minuto."
     ))],
     summary="Crear nuevo rol",
-    description="Crea un nuevo rol en el sistema. Solo SUPER_ADMIN puede crear roles."
+    description="Crea un nuevo rol en el sistema. Solo ADMIN o SUPER_ADMIN."
 )
 def crear_rol_endpoint(
     request: Request,
     rol: RolCreate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN"]))
+    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])) # ✅ PROTEGIDO
 ):
-    """
-    Endpoint para crear un nuevo rol.
-    
-    Ruta: POST /usuarios/roles/crear
-    
-    Rate limit: 10 creaciones por minuto.
-    Protección: Solo SUPER_ADMIN.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: POST /usuarios/roles/crear")
     logger.info(f"👤 Creado por: ID={current_user.id}, Email={current_user.email}")
@@ -789,13 +591,9 @@ def crear_rol_endpoint(
         return db_rol
     except ValueError as e:
         logger.error(f"❌ Error al crear rol: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-# Actualizar campos en los roles
 @router.put(
     "/roles/actualizar/{rol_id}",
     response_model=RolResponse,
@@ -807,45 +605,30 @@ def crear_rol_endpoint(
         error_message="Demasiadas solicitudes de actualización. Espera 1 minuto."
     ))],
     summary="Actualizar rol",
-    description="Actualiza los datos de un rol existente. Solo SUPER_ADMIN."
+    description="Actualiza los datos de un rol existente. Solo ADMIN o SUPER_ADMIN."
 )
 def actualizar_rol_endpoint(
     request: Request,
     rol_id: int,
     rol: RolUpdate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN"]))
+    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])) # ✅ PROTEGIDO
 ):
-    """
-    Endpoint para actualizar un rol existente.
-    
-    Ruta: PUT /usuarios/roles/actualizar/{rol_id}
-    
-    Rate limit: 20 actualizaciones por minuto.
-    Protección: Solo SUPER_ADMIN.
-    """
     logger.info("=" * 60)
     logger.info(f"📋 ENDPOINT: PUT /usuarios/roles/actualizar/{rol_id}")
     logger.info(f"👤 Actualizado por: ID={current_user.id}, Email={current_user.email}")
-    logger.info(f"📝 Datos recibidos: {rol.dict(exclude_unset=True)}")
     logger.info("=" * 60)
     
     from app.modules.usuarios.services import actualizar_rol
     try:
         db_rol = actualizar_rol(db, rol_id, rol)
-        
         if not db_rol:
-            logger.error(f"❌ Rol ID={rol_id} NO encontrado")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Rol con ID {rol_id} no encontrado"
             )
-        
         logger.info(f"✅ Rol ID={rol_id} actualizado exitosamente")
         return db_rol
     except ValueError as e:
         logger.error(f"❌ Error al actualizar rol: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

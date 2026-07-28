@@ -48,16 +48,26 @@ def get_usuario_by_email(db: Session, email: str):
 
 
 # Funcion para traer todos los usuarios OBTENER TODOS LOS USUARIOS
-def get_usuarios(db: Session, skip: int = 0, limit: int = 100, estado: str = None):
-    """Obtener lista de usuarios con filtros y logging"""
-    logger.info(f"🔍 Obteniendo usuarios (skip={skip}, limit={limit}, estado={estado})")
+def get_usuarios(db: Session, skip: int = 0, limit: int = 10, busqueda: str = None, estado: str = None):
+    """Obtener lista de usuarios con filtros, búsqueda y logging"""
+    logger.info(f"🔍 Obteniendo usuarios (skip={skip}, limit={limit}, busqueda={busqueda}, estado={estado})")
     
     query = db.query(Usuario)
     
     if estado is not None:
         query = query.filter(Usuario.estado == estado)
         logger.info(f"🔎 Aplicando filtro: estado={estado}")
-    
+        
+    if busqueda is not None:
+        # Búsqueda por nombre o email (case-insensitive)
+        query = query.filter(
+            (Usuario.nombre.ilike(f'%{busqueda}%')) | 
+            (Usuario.email.ilike(f'%{busqueda}%'))
+        )
+        logger.info(f"🔎 Aplicando filtro de búsqueda: {busqueda}")
+        # Si hay búsqueda, aumentamos el límite para mostrar todos los resultados coincidentes
+        limit = 100 
+        
     usuarios = query.offset(skip).limit(limit).all()
     logger.info(f"✅ Se encontraron {len(usuarios)} usuarios")
     
@@ -129,29 +139,23 @@ def actualizar_usuario(db: Session, usuario_id: int, usuario: UsuarioUpdate):
         logger.error(f"❌ ERROR: Usuario con ID {usuario_id} NO encontrado")
         return None
     
-    logger.info(f"📊 Datos ANTES de actualizar:")
-    logger.info(f"   - Nombre: {db_usuario.nombre}")
-    logger.info(f"   - Email: {db_usuario.email}")
-    logger.info(f"   - Teléfono: {db_usuario.telefono}")
-    logger.info(f"   - Estado: {db_usuario.estado}")
-    logger.info(f"   - Departamento ID: {db_usuario.departamento_id}")
-    logger.info(f"   - Rol ID: {db_usuario.rol_id}")
-    
-    #Crea una Variable que contiene los datos que se van a actualizar.
-    update_data = usuario.dict(exclude_unset=True)
-
+    update_data = usuario.model_dump(exclude_unset=True)
     logger.info(f"📝 Datos RECIBIDOS para actualizar: {update_data}")
     
-    # Campos que NO se pueden actualizar desde este endpoint
-    campos_protegidos = ['estado', 'password_hash', 'created_at', 'created_by']
-
-    #Verifica con la Variable los datos que se van a proteger, si se intenta actualizar alguno de estos campos, se genera un error y no se permite la actualización.
+    campos_protegidos = ['estado', 'created_at', 'created_by']
     for campo in campos_protegidos:
         if campo in update_data:
             logger.error(f"❌ ERROR: Intento de actualizar campo protegido: {campo}")
             raise ValueError(f"No se puede actualizar el campo '{campo}' desde este endpoint.")
+    
+    # Manejo especial para la contraseña
+    nueva_password_hash = None
+    if 'password' in update_data:
+        nueva_password = update_data.pop('password')
+        if nueva_password:
+            logger.info("🔐 Hasheando nueva contraseña...")
+            nueva_password_hash = pwd_context.hash(nueva_password)
         
-    #crea un listado de los campos que se van a actualizar, y los va mostrando en el log, para tener un registro de los cambios realizados.
     campos_actualizados = []
     for field, value in update_data.items():
         valor_anterior = getattr(db_usuario, field)
@@ -159,25 +163,19 @@ def actualizar_usuario(db: Session, usuario_id: int, usuario: UsuarioUpdate):
         campos_actualizados.append(f"{field}: {valor_anterior} → {value}")
         logger.info(f"   ✅ {field}: {valor_anterior} → {value}")
 
-    #Verifica si se ingresaron campos para actualizar, si no se ingresaron campos, se genera un mensaje de advertencia y no se realiza ninguna actualización.
+    if nueva_password_hash:
+        db_usuario.password_hash = nueva_password_hash
+        campos_actualizados.append("password: [HASHEADO]")
+        logger.info("   ✅ password: [HASHEADO]")
+
     if not campos_actualizados:
         logger.warning("⚠️ No se proporcionaron campos para actualizar")
         return db_usuario
     
-    logger.info(f"📊 Campos actualizados: {', '.join(campos_actualizados)}")
-
-    #Guarda los cambios en la base de datos.
     try:
         logger.info("💾 Guardando cambios en base de datos...")
         db.commit()
         db.refresh(db_usuario)
-        
-        logger.info(f"📊 Datos DESPUÉS de actualizar:")
-        logger.info(f"   - Nombre: {db_usuario.nombre}")
-        logger.info(f"   - Email: {db_usuario.email}")
-        logger.info(f"   - Estado: {db_usuario.estado}")
-        logger.info(f"   - Updated At: {db_usuario.updated_at}")
-        
         logger.info(f"✅ USUARIO ACTUALIZADO EXITOSAMENTE: ID={db_usuario.id}")
         return db_usuario
     except IntegrityError as e:
@@ -188,7 +186,6 @@ def actualizar_usuario(db: Session, usuario_id: int, usuario: UsuarioUpdate):
         db.rollback()
         logger.error(f"❌ ERROR DE BASE DE DATOS al actualizar: {str(e)}")
         raise ValueError(f"Error de base de datos: {str(e)}")
-
 
 
 # Funcion para activar usuarios ACTIVAR USUARIOS

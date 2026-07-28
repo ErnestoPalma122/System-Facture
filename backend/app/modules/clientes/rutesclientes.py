@@ -1,7 +1,7 @@
 # app/modules/clientes/routesclientes.py
 """
 Endpoints (Rutas) para el módulo de clientes.
-Incluye protección JWT, validación de roles, rate limiting y delegación de lógica al servicio.
+Incluye protección JWT por PERMISOS, rate limiting y delegación de lógica al servicio.
 """
 
 from typing import Optional
@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 from app.core.rate_limiter import rate_limit
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, require_role
+# ✅ ACTUALIZADO: Importar require_permission
+from app.core.dependencies import require_permission
 from app.modules.usuarios.models import Usuario
 
 from app.modules.clientes.schemasclientes import (
@@ -42,12 +43,13 @@ router = APIRouter(prefix="/clientes", tags=["Clientes"])
         key_prefix="clientes_listar"
     ))],
     summary="Listar clientes",
-    description="Obtiene una lista paginada de clientes. Requiere autenticación y rol de Vendedor, Admin o Super Admin."
+    description="Obtiene una lista paginada de clientes. Requiere permiso 'cliente:leer'."
 )
 def listar_clientes(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN", "VENDEDOR"])), # ← Seguridad por rol
+    # ✅ CAMBIO: Ahora usa require_permission
+    current_user: Usuario = Depends(require_permission("cliente:leer")),
     skip: int = 0,
     limit: int = 100,
     activo: Optional[bool] = None,
@@ -76,13 +78,14 @@ def listar_clientes(
         key_prefix="clientes_obtener"
     ))],
     summary="Obtener cliente por ID",
-    description="Obtiene los detalles completos de un cliente específico. Requiere autenticación."
+    description="Obtiene los detalles completos de un cliente específico. Requiere permiso 'cliente:leer'."
 )
 def obtener_cliente(
     request: Request,
     cliente_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN", "VENDEDOR"])) # ← Seguridad por rol
+    # ✅ CAMBIO: Ahora usa require_permission
+    current_user: Usuario = Depends(require_permission("cliente:leer"))
 ):
     """Obtiene un cliente por su ID."""
     logger.info(f"📋 ENDPOINT: GET /clientes/obtener/{cliente_id} | Usuario: {current_user.id}")
@@ -106,13 +109,14 @@ def obtener_cliente(
         error_message="Demasiadas solicitudes de creación de clientes. Espera 1 minuto."
     ))],
     summary="Crear nuevo cliente",
-    description="Registra un nuevo cliente en el sistema. Solo administradores pueden crear clientes."
+    description="Registra un nuevo cliente en el sistema. Requiere permiso 'cliente:crear'."
 )
 def crear_cliente_endpoint(
     request: Request,
     cliente_data: ClienteCreate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])) # ← Seguridad restrictiva
+    # ✅ CAMBIO: Ahora usa require_permission
+    current_user: Usuario = Depends(require_permission("cliente:crear"))
 ):
     """Crea un nuevo cliente validando la unicidad del correo."""
     logger.info("=" * 60)
@@ -141,14 +145,15 @@ def crear_cliente_endpoint(
         error_message="Demasiadas solicitudes de actualización. Espera 1 minuto."
     ))],
     summary="Actualizar cliente",
-    description="Actualiza los datos de un cliente existente. Solo administradores."
+    description="Actualiza los datos de un cliente existente. Requiere permiso 'cliente:actualizar'."
 )
 def actualizar_cliente_endpoint(
     request: Request,
     cliente_id: int,
     cliente_data: ClienteUpdate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])) # ← Seguridad restrictiva
+    # ✅ CAMBIO: Ahora usa require_permission
+    current_user: Usuario = Depends(require_permission("cliente:actualizar"))
 ):
     """Actualiza parcialmente o totalmente un cliente."""
     logger.info(f"📋 ENDPOINT: PUT /clientes/actualizar/{cliente_id} | Usuario: {current_user.id}")
@@ -177,13 +182,14 @@ def actualizar_cliente_endpoint(
         error_message="Demasiadas solicitudes de eliminación. Espera 1 minuto."
     ))],
     summary="Desactivar cliente (Soft Delete)",
-    description="Desactiva un cliente del sistema (no lo borra físicamente). Solo administradores."
+    description="Desactiva un cliente del sistema (no lo borra físicamente). Requiere permiso 'cliente:eliminar'."
 )
 def eliminar_cliente_endpoint(
     request: Request,
     cliente_id: int,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"])) # ← Seguridad restrictiva
+    # ✅ CAMBIO: Ahora usa require_permission
+    current_user: Usuario = Depends(require_permission("cliente:eliminar"))
 ):
     """Realiza un soft delete (cambia estado a inactivo)."""
     logger.info(f"📋 ENDPOINT: DELETE /clientes/eliminar/{cliente_id} | Usuario: {current_user.id}")

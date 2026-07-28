@@ -67,7 +67,7 @@ class Bodega(Base):
     
     # Relaciones
     encargado = relationship("Usuario", foreign_keys=[encargado_id])
-    productos = relationship("Producto", back_populates="bodega")
+    
     stocks = relationship("Stock", back_populates="bodega")
     
     def __repr__(self):
@@ -145,16 +145,15 @@ class Producto(Base):
     
     # Relaciones con otras tablas
     categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=True, index=True)
-    bodega_id = Column(Integer, ForeignKey("bodegas.id"), nullable=True, index=True)
+
     
     activo = Column(Boolean, default=True, index=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relaciones
     categoria = relationship("Categoria", back_populates="productos")
-    bodega = relationship("Bodega", back_populates="productos")
     precio = relationship("Precio", back_populates="producto", uselist=False, cascade="all, delete-orphan")
     stocks = relationship("Stock", back_populates="producto", cascade="all, delete-orphan")
     

@@ -1,40 +1,35 @@
-#C:\Users\PC\Desktop\Factu\backend\app\core\middleware.py
+# C:\Users\PC\Desktop\Factu\backend\app\core\middleware.py
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-
 def configure_middlewares(app: FastAPI):
-
-    # CORS Middleware
-    #Muestra a que puerto se conectara la backend con la frontend
-    #con los metodos "GET","POST","PUT","PATCH","DELETE","OPTIONS
-    #con cualquier encabezado ["*"]
+    print("✅ [MIDDLEWARE] Configurando CORS para http://localhost:5173...")
+    
+    # 1. CORS DEBE SER EL PRIMER MIDDLEWARE REGISTRADO
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
+            
+            "http://localhost:5173",
+            
+            "http://127.0.0.1:5173",
+            
         ],
         allow_credentials=True,
-        allow_methods=[
-            "GET",
-            "POST",
-            "PUT",
-            "PATCH",
-            "DELETE",
-            "OPTIONS"
-        ],
+        allow_methods=["*"],
         allow_headers=["*"],
     )
     
-    # Rate Limit Headers Middleware
-    #Intercepata dosa las peticiones HTTP y antes de enviar la respuesta 
-    #le inyecta el limite de datos en los encabezados. 
+    # 2. Middleware para inyectar headers de rate limit (DESPUÉS de CORS)
     @app.middleware("http")
     async def add_rate_limit_headers(request: Request, call_next):
+        # Si es una petición OPTIONS (preflight), la dejamos pasar sin tocar nada
+        # para que el middleware de CORS superior haga su trabajo limpio.
+        if request.method == "OPTIONS":
+            return await call_next(request)
+            
         response = await call_next(request)
         
-        # Agregar headers de rate limit si están disponibles
         if hasattr(request.state, "rate_limit_info"):
             info = request.state.rate_limit_info
             response.headers["X-RateLimit-Limit"] = str(info["limit"])
@@ -42,3 +37,5 @@ def configure_middlewares(app: FastAPI):
             response.headers["X-RateLimit-Reset"] = str(info["reset"])
         
         return response
+        
+    print("✅ [MIDDLEWARE] Configuración completada exitosamente.")

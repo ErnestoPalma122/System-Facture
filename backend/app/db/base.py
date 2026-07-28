@@ -38,6 +38,11 @@ from app.modules.clientes.modelsclientes import(
     Cliente
 )
 
+#Importa modelo de Emisor
+from app.modules.emisor.models import(
+    Emisor
+)
+
 #Lista de Exportaciones
 __all__ = [
     "Base",
@@ -56,5 +61,6 @@ __all__ = [
     "EstadoItems",
     "Items",
     "Estado_Ingreso",
-    "Cliente"
+    "Cliente",
+    "Emisor"
 ]

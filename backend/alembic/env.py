@@ -19,6 +19,7 @@ from app.modules.productos.modelsproducto import Producto, Categoria, Precio, St
 from app.modules.proveedores.models_proveedor import Proveedor
 from app.modules.inventario.models_inventario import Ingreso, EstadoItems, Items, Estado_Ingreso
 from app.modules.clientes.modelsclientes import Cliente
+from app.modules.emisor.models import Emisor
 
 # Configuración de Alembic
 config = context.config

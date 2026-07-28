@@ -1,34 +1,26 @@
-#C:\Users\PC\Desktop\Factu\backend\app\core\dependencies.py
 from fastapi import Depends, HTTPException, status
-# Estandariza la extracción del token. En lugar de que tú leas los 
-#headers manualmente y busques la palabra "Bearer" FastAPI lo hace por ti 
-#y te da el token limpio.
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.jwt import verify_token
-from app.modules.usuarios.models import Usuario
+from app.modules.usuarios.models import Usuario, Rol
 import logging
 
 logger = logging.getLogger(__name__)
 
-
-#Configura FastAPI para saber que debe esperar un token en el encabezado HTTP
+# Configura FastAPI para saber que debe esperar un token en el encabezado HTTP
 security = HTTPBearer()
 
-#Dependecia que funciona como portero, extrae y decodifica los tokens
-#y centraliza las autenticaciones de cada token
+# Dependencia que funciona como portero, extrae y decodifica los tokens
+# y centraliza las autenticaciones de cada token
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> Usuario:
     """
     Dependencia que valida el token JWT y retorna el usuario actual.
-    
-    Uso en endpoints:
-        current_user: Usuario = Depends(get_current_user)
+    Optimizada para cargar también el rol y sus permisos de una sola vez.
     """
-    
     logger.info("=" * 60)
     logger.info("🔐 VALIDANDO TOKEN JWT")
     logger.info("=" * 60)
@@ -60,8 +52,10 @@ async def get_current_user(
     
     logger.info(f"👤 Usuario ID del token: {usuario_id}")
     
-    # Buscar usuario en base de datos
-    usuario = db.query(Usuario).filter(Usuario.id == int(usuario_id)).first()
+    # Buscar usuario en base de datos (CARGA ANSICIADA del rol y sus permisos)
+    usuario = db.query(Usuario).options(
+        joinedload(Usuario.rol).joinedload(Rol.permisos)
+    ).filter(Usuario.id == int(usuario_id)).first()
     
     if not usuario:
         logger.error(f"❌ Usuario ID={usuario_id} NO encontrado en BD")
@@ -84,14 +78,13 @@ async def get_current_user(
     
     return usuario
 
-#Dependecia de Usuario activo 
-#lo que hace es la compracion de si el usuario esta activo o desctivado
+
+# Dependencia de Usuario activo 
 async def get_current_active_user(
     current_user: Usuario = Depends(get_current_user)
 ) -> Usuario:
     """
     Dependencia que verifica que el usuario tenga estado ACTIVO.
-    Útil para endpoints que requieren usuario activo específicamente.
     """
     if not current_user.puede_acceder():
         raise HTTPException(
@@ -100,21 +93,12 @@ async def get_current_active_user(
         )
     return current_user
 
-#Fabrica de roles
-#bascamente hace que no tengas que escribir una dependencia distinta 
-# cada vez que se de un rol
+
+# Fabrica de roles
 def require_role(required_roles: list):
     """
     Dependencia que verifica si el usuario tiene un rol específico.
-    
-    Uso:
-        @router.get("/admin")
-        async def admin_endpoint(
-            current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"]))
-        ):
-            ...
     """
-    #funcion interna que recuerda la lista de roles de (required_roles)
     async def role_checker(current_user: Usuario = Depends(get_current_user)):
         logger.info(f"🔍 Verificando rol del usuario ID={current_user.id}")
         
@@ -125,12 +109,8 @@ def require_role(required_roles: list):
                 detail="Usuario no tiene rol asignado"
             )
         
-        # Convertir el tipo de rol a string para comparación
         user_role = current_user.rol.tipo.value.upper()
-        
         logger.info(f"👤 Rol del usuario: {user_role}")
-        #Solo escribes Depends(require_role y le das el rol que
-        #necesita para acceder en las rutas
         logger.info(f"🎯 Roles requeridos: {required_roles}")
         
         if user_role not in [r.upper() for r in required_roles]:
@@ -144,3 +124,41 @@ def require_role(required_roles: list):
         return current_user
     
     return role_checker
+
+
+# ✅ NUEVO: Fábrica de permisos asertivos
+def require_permission(required_permission: str):
+    """
+    Dependencia que verifica si el rol del usuario tiene un permiso específico.
+    
+    Uso en endpoints:
+        @router.post("/crear")
+        async def crear_bodega(
+            current_user: Usuario = Depends(require_permission("bodega:crear"))
+        ):
+            ...
+    """
+    async def permission_checker(current_user: Usuario = Depends(get_current_user)):
+        logger.info(f"🔍 Verificando permiso '{required_permission}' para usuario ID={current_user.id}")
+        
+        if not current_user.rol or not current_user.rol.activo:
+            logger.error("❌ Usuario no tiene un rol activo asignado")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Usuario no tiene un rol activo asignado"
+            )
+        
+        # Gracias al joinedload en get_current_user, current_user.rol.permisos ya está cargado
+        permisos_usuario = [p.codigo.lower() for p in current_user.rol.permisos if p.activo]
+        
+        if required_permission.lower() not in permisos_usuario:
+            logger.error(f"❌ Permiso '{required_permission}' NO encontrado en el rol '{current_user.rol.nombre}'")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permiso denegado. Se requiere el permiso: {required_permission}"
+            )
+        
+        logger.info(f"✅ Permiso '{required_permission}' autorizado para rol '{current_user.rol.nombre}'")
+        return current_user
+    
+    return permission_checker

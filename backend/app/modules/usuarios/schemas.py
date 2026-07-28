@@ -111,6 +111,9 @@ class UsuarioUpdate(BaseModel):
     telefono: Optional[str] = Field(None, max_length=20)
     departamento_id: Optional[int] = None
     rol_id: Optional[int] = None
+    password: Optional[str] = Field(None, min_length=8, description="Nueva contraseña (opcional)") # <-- AGREGADO
+
+
 #hereda de UsuarioBase, para leer un usuario.
 class UsuarioResponse(UsuarioBase):
     id: int

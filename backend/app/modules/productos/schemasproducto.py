@@ -1,4 +1,3 @@
-# app/modules/productos/schemasproducto.py
 """
 Schemas para módulos de productos: Producto, Precio, Categoria, Stock, Bodega
 """
@@ -155,7 +154,6 @@ class ProductoBase(BaseModel):
     marca: Optional[str] = Field(None, max_length=100, description="Marca del producto")
     tipo: TipoProductoEnum = Field(TipoProductoEnum.BIEN, description="Tipo: BIEN o SERVICIO")
     categoria_id: Optional[int] = Field(None, description="ID de la categoría")
-    bodega_id: Optional[int] = Field(None, description="ID de la bodega principal")
 
 class ProductoCreate(ProductoBase):
     precio: PrecioCreate = Field(..., description="Precios del producto")
@@ -167,7 +165,6 @@ class ProductoUpdate(BaseModel):
     marca: Optional[str] = Field(None, max_length=100)
     tipo: Optional[TipoProductoEnum] = None
     categoria_id: Optional[int] = None
-    bodega_id: Optional[int] = None
     activo: Optional[bool] = None
 
 class ProductoResponse(ProductoBase):
