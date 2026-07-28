@@ -1,43 +1,68 @@
+// frontend/src/app/router.tsx
+
+//Este archivo es el nucleo de nabegacion 
+
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { authRoutes } from '@/features/auth/pages/pages';
+import { Dashboard, DashboardHome } from '@/features/dashboard/pages/Dashboard';
+import { bodegasRoutes } from '@/features/bodegas/pages/pages';
+import { emisorRoutes } from '@/features/emisor/pages/pages';
+import { proveedoresRoutes } from '@/features/proveedores/pages/pages';
+import { productosRutas } from '@/features/productos/pages/productos.rutas'; // <-- IMPORTADO
+import { usuariosRutas } from '@/features/usuarios/pages/usuarios.rutas';
 
 export function Router() {
   const { isAuthenticated } = useAuthStore();
-
+  // se dividen rutas Publicos, Rutas Protegidas y ruta 404(Comodin que lo envia a el Dashboard) 
   return (
     <Routes>
-      <Route 
-        path="/" 
+      {/* 1. Rutas Públicas (Auth) */}
+      {authRoutes.map((route) => (
+        <Route key={route.path} path={route.path} element={route.element} />
+      ))}
+
+      {/* 2. Rutas Protegidas (Envueltas en el Layout del Dashboard) */}
+      <Route
         element={
           isAuthenticated ? (
-            <div className="p-8">
-              <h1 className="text-3xl font-bold text-blue-600">
-                🚀 Dashboard - Sistema Factu
-              </h1>
-              <p className="mt-4 text-gray-600">
-                Bienvenido al sistema. Sesión activa.
-              </p>
-            </div>
+            <Dashboard />
           ) : (
             <Navigate to="/login" replace />
           )
-        } 
-      />
-      <Route 
-        path="/login" 
-        element={
-          <div className="flex items-center justify-center min-h-screen bg-gray-100">
-            <div className="bg-white p-8 rounded-lg shadow-md">
-              <h1 className="text-2xl font-bold text-gray-800">
-                🔐 Login (Próximamente)
-              </h1>
-              <p className="mt-2 text-gray-600">
-                Módulo de autenticación en desarrollo
-              </p>
-            </div>
-          </div>
-        } 
-      />
+        }
+      >
+        {/* Ruta por defecto dentro del Dashboard */}
+        <Route path="/" element={<DashboardHome />} />
+        
+        {/* Inyección de rutas de módulos protegidos */}
+        {bodegasRoutes.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+        
+        {/* Inyección de rutas del módulo Emisor */}
+        {emisorRoutes.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+
+        {/* Inyección de rutas del módulo Proveedores */}
+        {proveedoresRoutes.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+
+        {/* Inyección de rutas del módulo Productos */}
+        {productosRutas.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+        
+        {/* Inyección de rutas del módulo Usuarios */}
+        {usuariosRutas.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+      </Route>
+
+      {/* 3. Ruta 404 (Redirige al dashboard) */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

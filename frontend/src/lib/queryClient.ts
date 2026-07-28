@@ -1,5 +1,10 @@
+//frontend\src\lib\queryClient.ts
+
+//Manejara los datos por defecto en toda la app que se configuro en providers.tsx
 import { QueryClient } from '@tanstack/react-query';
 
+
+//
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
