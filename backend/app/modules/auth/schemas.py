@@ -68,11 +68,20 @@ class RolResponse(BaseModel):
     nombre: str
     tipo: str
 
+# ✅ AGREGADO: Schema para el departamento
+class DepartamentoResponse(BaseModel):
+    id: int
+    nombre: str
+
 class UsuarioResponse(BaseModel):
     id: int
     nombre: str
     email: str
     rol: RolResponse
+    departamento: Optional[DepartamentoResponse] = None  # ✅ AGREGADO: Puede ser null si el usuario no tiene depto
+
+    class Config:
+        from_attributes = True  # ✅ Necesario para que SQLAlchemy funcione
 
 
 # ✅ LOGIN RESPONSE ACTUALIZADO (Se agregó refresh_token y el objeto usuario)

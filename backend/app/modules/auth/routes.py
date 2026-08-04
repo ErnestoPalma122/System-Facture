@@ -92,6 +92,11 @@ async def iniciar_sesion(
                     "id": usuario.rol.id,
                     "nombre": usuario.rol.nombre,
                     "tipo": usuario.rol.tipo
+                },
+                # ✅ AGREGADO: Información del departamento
+                "departamento": {
+                    "id": usuario.departamento.id if usuario.departamento else None,
+                    "nombre": usuario.departamento.nombre if usuario.departamento else None
                 }
             }
         )

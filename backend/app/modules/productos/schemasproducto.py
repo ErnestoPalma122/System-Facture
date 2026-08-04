@@ -1,3 +1,4 @@
+#backend\app\modules\productos\schemasproducto.py
 """
 Schemas para módulos de productos: Producto, Precio, Categoria, Stock, Bodega
 """
@@ -143,6 +144,8 @@ class StockListResponse(BaseModel):
     stocks: List[StockResponse]
 
 
+# ... (imports y schemas anteriores se mantienen igual)
+
 # ===========================================================
 # PRODUCTO - SCHEMAS (CON CÓDIGO)
 # ===========================================================
@@ -152,12 +155,13 @@ class ProductoBase(BaseModel):
     nombre: str = Field(..., min_length=2, max_length=150, description="Nombre del producto")
     descripcion: Optional[str] = Field(None, description="Descripción detallada")
     marca: Optional[str] = Field(None, max_length=100, description="Marca del producto")
-    tipo: TipoProductoEnum = Field(TipoProductoEnum.BIEN, description="Tipo: BIEN o SERVICIO")
+    tipo: TipoProductoEnum = Field(TipoProductoEnum.SERVICIO, description="Tipo: BIEN o SERVICIO")
     categoria_id: Optional[int] = Field(None, description="ID de la categoría")
 
 class ProductoCreate(ProductoBase):
     precio: PrecioCreate = Field(..., description="Precios del producto")
 
+# ✅ CORRECCIÓN: Se agrega el campo 'precio' para permitir la actualización conjunta de cabecera y precios
 class ProductoUpdate(BaseModel):
     codigo: Optional[str] = Field(None, min_length=2, max_length=50)
     nombre: Optional[str] = Field(None, min_length=2, max_length=150)
@@ -166,6 +170,7 @@ class ProductoUpdate(BaseModel):
     tipo: Optional[TipoProductoEnum] = None
     categoria_id: Optional[int] = None
     activo: Optional[bool] = None
+    precio: Optional[PrecioUpdate] = Field(None, description="Precios del producto a actualizar") # <-- AGREGADO
 
 class ProductoResponse(ProductoBase):
     id: int
@@ -185,6 +190,8 @@ class ProductoResponse(ProductoBase):
         return v
     
     model_config = ConfigDict(from_attributes=True)
+
+# ... (el resto del archivo se mantiene igual)
 
 class ProductoListResponse(BaseModel):
     total: int

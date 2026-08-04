@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Request, status, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 # ✅ ACTUALIZADO: Importar require_permission en lugar de require_role
-from app.core.dependencies import require_permission
+from app.core.dependencies import require_permission, get_current_user
 from app.modules.usuarios.models import Usuario
 from app.modules.emisor.schemas import EmisorCreate, EmisorUpdate, EmisorResponse
 from app.modules.emisor.services import get_emisor_activo, guardar_emisor
@@ -24,8 +24,7 @@ router = APIRouter(prefix="/emisor", tags=["Configuración del Emisor"])
 )
 def obtener_emisor(
     db: Session = Depends(get_db),
-    # ✅ CAMBIO: Ahora usa require_permission
-    current_user: Usuario = Depends(require_permission("emisor:leer"))
+    current_user: Usuario = Depends(get_current_user)
 ):
     """Obtiene la configuración actual del emisor."""
     logger.info("📋 ENDPOINT: GET /emisor/obtener")
@@ -50,8 +49,7 @@ def crear_emisor(
     request: Request,
     emisor_data: EmisorCreate,
     db: Session = Depends(get_db),
-    # ✅ CAMBIO: Ahora usa require_permission (Crear configuración es una acción administrativa crítica)
-    current_user: Usuario = Depends(require_permission("emisor:actualizar"))
+    current_user: Usuario = Depends(get_current_user)
 ):
     """Crea una nueva configuración de emisor. Falla si ya existe uno activo."""
     logger.info("=" * 60)
@@ -84,8 +82,8 @@ def actualizar_emisor(
     request: Request,
     emisor_data: EmisorUpdate,
     db: Session = Depends(get_db),
-    # ✅ CAMBIO: Ahora usa require_permission
-    current_user: Usuario = Depends(require_permission("emisor:actualizar"))
+    
+    current_user: Usuario = Depends(get_current_user)
 ):
     """Actualiza la configuración existente del emisor."""
     logger.info("=" * 60)

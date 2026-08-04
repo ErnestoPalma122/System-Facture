@@ -322,3 +322,14 @@ class IngresoMercaderiaService:
         logger.info(f"✅ Ingreso encontrado: ID={ingreso.id}, Items={len(ingreso.items)}")
         
         return ingreso
+
+    @staticmethod
+    def listar_ingresos(db: Session, skip: int = 0, limit: int = 20):
+        """
+        DOCUMENTACIÓN: Obtiene una lista paginada de los ingresos más recientes.
+        Se ordena por ID descendente para mostrar siempre los últimos primero.
+        """
+        logger.info(f"🔍 Listando ingresos recientes (skip={skip}, limit={limit})")
+        ingresos = db.query(Ingreso).order_by(Ingreso.id.desc()).offset(skip).limit(limit).all()
+        logger.info(f"✅ Se encontraron {len(ingresos)} ingresos")
+        return ingresos

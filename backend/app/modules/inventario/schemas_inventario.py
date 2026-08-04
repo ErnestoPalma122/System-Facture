@@ -74,46 +74,6 @@ class ItemsListResponse(BaseModel):
     total: int
     items: List[ItemsResponse]
 
-
-# ===========================================================
-# INGRESO - SCHEMAS
-# ===========================================================
-
-class IngresoBase(BaseModel):
-    proveedor_id: int = Field(..., description="ID del proveedor")
-    dte: Optional[str] = Field(None, max_length=50, description="DTE del ingreso")
-    sello: Optional[str] = Field(None, max_length=100, description="Sello del documento")
-    codigo_origen: Optional[str] = Field(None, max_length=100, description="Código de origen")
-    cotizacion: Optional[str] = Field(None, max_length=50, description="Número de cotización")
-    observaciones: Optional[str] = Field(None, description="Observaciones del ingreso")
-
-class IngresoCreate(IngresoBase):
-    items: List[ItemsCreate] = Field(..., description="Lista de items del ingreso")
-
-class IngresoUpdate(BaseModel):
-    proveedor_id: Optional[int] = None
-    dte: Optional[str] = Field(None, max_length=50)
-    sello: Optional[str] = Field(None, max_length=100)
-    codigo_origen: Optional[str] = Field(None, max_length=100)
-    cotizacion: Optional[str] = Field(None, max_length=50)
-    observaciones: Optional[str] = None
-    activo: Optional[bool] = None
-
-class IngresoResponse(IngresoBase):
-    id: int
-    fecha: datetime
-    activo: bool
-    items: List[ItemsResponse] = []
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    
-    model_config = ConfigDict(from_attributes=True)
-
-class IngresoListResponse(BaseModel):
-    total: int
-    ingresos: List[IngresoResponse]
-
-
 # ===========================================================
 # MENSAJE GENÉRICO
 # ===========================================================

@@ -12,7 +12,7 @@ from app.core.rate_limiter import rate_limit
 from app.core.config import settings
 from app.core.database import get_db
 # ✅ ACTUALIZADO: Importar require_permission
-from app.core.dependencies import require_permission
+from app.core.dependencies import require_permission, get_current_user
 from app.modules.usuarios.models import Usuario
 
 from app.modules.clientes.schemasclientes import (
@@ -49,7 +49,7 @@ def listar_clientes(
     request: Request,
     db: Session = Depends(get_db),
     # ✅ CAMBIO: Ahora usa require_permission
-    current_user: Usuario = Depends(require_permission("cliente:leer")),
+    current_user: Usuario = Depends(get_current_user),
     skip: int = 0,
     limit: int = 100,
     activo: Optional[bool] = None,
@@ -85,7 +85,7 @@ def obtener_cliente(
     cliente_id: int,
     db: Session = Depends(get_db),
     # ✅ CAMBIO: Ahora usa require_permission
-    current_user: Usuario = Depends(require_permission("cliente:leer"))
+    current_user: Usuario = Depends(get_current_user)
 ):
     """Obtiene un cliente por su ID."""
     logger.info(f"📋 ENDPOINT: GET /clientes/obtener/{cliente_id} | Usuario: {current_user.id}")
@@ -116,7 +116,7 @@ def crear_cliente_endpoint(
     cliente_data: ClienteCreate,
     db: Session = Depends(get_db),
     # ✅ CAMBIO: Ahora usa require_permission
-    current_user: Usuario = Depends(require_permission("cliente:crear"))
+    current_user: Usuario = Depends(get_current_user)
 ):
     """Crea un nuevo cliente validando la unicidad del correo."""
     logger.info("=" * 60)
@@ -189,7 +189,7 @@ def eliminar_cliente_endpoint(
     cliente_id: int,
     db: Session = Depends(get_db),
     # ✅ CAMBIO: Ahora usa require_permission
-    current_user: Usuario = Depends(require_permission("cliente:eliminar"))
+    current_user: Usuario = Depends(get_current_user)
 ):
     """Realiza un soft delete (cambia estado a inactivo)."""
     logger.info(f"📋 ENDPOINT: DELETE /clientes/eliminar/{cliente_id} | Usuario: {current_user.id}")

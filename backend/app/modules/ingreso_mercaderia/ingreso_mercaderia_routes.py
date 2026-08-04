@@ -53,7 +53,7 @@ def crear_ingreso_mercaderia(
     request: Request,
     data: IngresoMercaderiaCreate,
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(require_role(["SUPER_ADMIN", "ADMIN"]))
+    current_user: Usuario = Depends(get_current_user)
 ):
     """
     Endpoint para crear ingreso de mercadería.
@@ -128,6 +128,34 @@ def obtener_ingreso_mercaderia(
         )
     except Exception as e:
         logger.error(f"❌ Error inesperado: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno del servidor: {str(e)}"
+        )
+
+@router.get(
+    "/listar",
+    status_code=status.HTTP_200_OK,
+    summary="Listar ingresos recientes",
+    description="Obtiene una lista de los últimos ingresos de mercadería registrados."
+)
+def listar_ingresos(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 20
+):
+    """
+    DOCUMENTACIÓN: Endpoint para alimentar la tabla de 'Últimos Ingresos' en el frontend.
+    Requiere autenticación y devuelve un array de ingresos ordenados por fecha/ID.
+    """
+    logger.info(f"📋 ENDPOINT: GET /ingreso-mercaderia/listar")
+    try:
+        ingresos = IngresoMercaderiaService.listar_ingresos(db, skip=skip, limit=limit)
+        return ingresos
+    except Exception as e:
+        logger.error(f"❌ Error al listar ingresos: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor: {str(e)}"

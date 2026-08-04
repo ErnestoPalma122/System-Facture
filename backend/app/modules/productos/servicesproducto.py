@@ -1,3 +1,5 @@
+#backend\app\modules\productos\servicesproducto.py
+
 """
 Servicios para módulos de productos: Producto, Precio, Categoria, Stock, Bodega
 Con debug detallado en cada operación
@@ -513,7 +515,10 @@ def crear_producto(db: Session, producto: ProductoCreate):
         logger.error(f"❌ ERROR DE BASE DE DATOS: {str(e)}")
         raise ValueError(f"Error de base de datos: {str(e)}")
 
+# ... (funciones anteriores se mantienen igual)
+
 def actualizar_producto(db: Session, producto_id: int, producto: ProductoUpdate):
+    # DOCUMENTACIÓN: Actualiza un producto existente, incluyendo su cabecera y sus precios asociados en una sola transacción.
     logger.info("=" * 60)
     logger.info(f"🔄 INICIANDO ACTUALIZACIÓN DE PRODUCTO ID: {producto_id}")
     logger.info("=" * 60)
@@ -539,11 +544,29 @@ def actualizar_producto(db: Session, producto_id: int, producto: ProductoUpdate)
             logger.error(f"❌ ERROR: Ya existe otro producto con nombre '{update_data['nombre']}'")
             raise ValueError(f"Ya existe otro producto con nombre '{update_data['nombre']}'")
     
+    # ✅ CORRECCIÓN: Extraer los datos de precio del payload para manejarlos por separado
+    precio_data = update_data.pop('precio', None)
+    
+    # Actualizar campos de la cabecera del producto
     for field, value in update_data.items():
         if field == 'tipo' and hasattr(value, 'value'):
             value = value.value
         setattr(db_producto, field, value)
     
+    # ✅ CORRECCIÓN: Actualizar precios asociados si se proporcionaron en la petición
+    if precio_data:
+        logger.info("💰 Actualizando precios asociados...")
+        db_precio = get_precio_by_producto_id(db, producto_id)
+        if db_precio:
+            for field, value in precio_data.items():
+                if value is not None: # Solo actualizamos los campos que vienen explícitamente
+                    setattr(db_precio, field, value)
+            logger.info("✅ Precios actualizados en memoria")
+        else:
+            logger.warning("⚠️ No se encontró precio existente, creando uno nuevo...")
+            db_precio = Precio(producto_id=producto_id, **precio_data, activo=True)
+            db.add(db_precio)
+
     try:
         db.commit()
         db.refresh(db_producto)
@@ -559,6 +582,8 @@ def actualizar_producto(db: Session, producto_id: int, producto: ProductoUpdate)
         db.rollback()
         logger.error(f"❌ ERROR DE BASE DE DATOS: {str(e)}")
         raise ValueError(f"Error de base de datos: {str(e)}")
+
+# ... (el resto del archivo se mantiene igual)
 
 def eliminar_producto(db: Session, producto_id: int):
     logger.info("=" * 60)
