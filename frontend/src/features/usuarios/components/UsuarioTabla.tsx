@@ -1,3 +1,5 @@
+// frontend/src/features/usuarios/components/UsuarioTabla.tsx
+
 import { Usuario } from '../api/usuario_api';
 
 interface UsuarioTablaProps {
@@ -26,6 +28,7 @@ export function UsuarioTabla({
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mt-6">
+      {/* 📌 ENCABEZADO DE LA TABLA Y BARRA DE BÚSQUEDA */}
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-lg font-bold text-gray-800">Listado de Usuarios</h2>
         
@@ -42,12 +45,14 @@ export function UsuarioTabla({
             placeholder="Buscar por nombre o correo..."
             className={inputClass}
           />
+          {/* ⚠️ Feedback visual para guiar al usuario sobre la longitud mínima de búsqueda */}
           {busqueda.length > 0 && busqueda.length < 2 && (
             <p className="text-xs text-gray-500 mt-1 pl-1">Mínimo 2 caracteres para buscar</p>
           )}
         </div>
       </div>
       
+      {/* 📌 BARRA DE ESTADO DE RESULTADOS */}
       <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center text-sm text-gray-600">
         <span>
           {busqueda.length >= 2 
@@ -62,6 +67,7 @@ export function UsuarioTabla({
         )}
       </div>
 
+      {/* 📌 CUERPO DE LA TABLA */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -96,6 +102,7 @@ export function UsuarioTabla({
                     >
                       ✏️ Editar
                     </button>
+                    {/* ⚠️ SEGURIDAD: Solo se permite eliminar usuarios que estén actualmente ACTIVOS */}
                     {user.estado === 'ACTIVO' && (
                       <button 
                         onClick={() => onEliminarClick(user)}
@@ -108,6 +115,7 @@ export function UsuarioTabla({
                 </tr>
               ))
             ) : (
+              // 📌 ESTADOS VACÍOS (EMPTY STATES) DIFERENCIADOS
               <tr>
                 <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                   {busqueda.length >= 2 ? (

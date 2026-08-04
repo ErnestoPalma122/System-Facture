@@ -1,4 +1,5 @@
-//frontend\src\features\proveedores\components\filtro_busqueda_proveedores.tsx
+// frontend\src\features\proveedores\components\filtro_busqueda_proveedores.tsx
+
 import { useState, useEffect } from 'react';
 
 interface FiltroBusquedaProveedoresProps {
@@ -6,18 +7,23 @@ interface FiltroBusquedaProveedoresProps {
   isLoading: boolean;
 }
 
+// 📌 COMPONENTE REUTILIZABLE DE BÚSQUEDA CON DEBOUNCE
+// Este componente gestiona la entrada de texto del usuario y retrasa la ejecución de la búsqueda 
+// para no saturar el backend con peticiones por cada tecla pulsada.
 export function FiltroBusquedaProveedores({ onSearch, isLoading }: FiltroBusquedaProveedoresProps) {
   const [term, setTerm] = useState('');
 
+  // 📌 LÓGICA DE DEBOUNCE (OPTIMIZACIÓN DE RENDIMIENTO)
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Solo ejecutamos la búsqueda si el usuario escribió 2 o más letras, 
-      // o si borró todo el texto (para restaurar la lista completa).
+      // ⚠️ CONDICIÓN CRÍTICA: Solo ejecutamos la búsqueda si el usuario escribió 2 o más letras, 
+      // o si borró todo el texto (para restaurar la lista completa). Esto evita búsquedas de 1 sola letra inútiles.
       if (term.length >= 2 || term === '') {
         onSearch(term);
       }
     }, 500); // Espera 500ms después de que el usuario deja de escribir
 
+    // Función de limpieza: cancela el timer si el usuario sigue escribiendo antes de que se cumplan los 500ms.
     return () => clearTimeout(timer);
   }, [term, onSearch]);
 
@@ -25,13 +31,13 @@ export function FiltroBusquedaProveedores({ onSearch, isLoading }: FiltroBusqued
     <div className="relative w-full max-w-md">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         {isLoading ? (
-          // Spinner de carga mientras busca
+          // 🔗 FEEDBACK VISUAL: Muestra un spinner de carga en lugar de la lupa cuando la petición está en curso.
           <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
         ) : (
-          // Lupa normal cuando no está buscando
+          // Icono de lupa normal cuando no está buscando.
           <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>

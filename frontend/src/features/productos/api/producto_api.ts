@@ -1,11 +1,13 @@
-//frontend\src\features\productos\api\producto_api.ts
 import api from '@/lib/axios';
 
+// DOCUMENTACIÓN: Interfaz que representa una Categoría de producto.
 export interface Categoria {
   id: number;
   nombre: string;
 }
 
+// DOCUMENTACIÓN: Interfaz que representa la respuesta de un Producto desde el backend.
+// ✅ ACTUALIZACIÓN: Ahora incluye TODOS los campos de precio para una edición y visualización completa.
 export interface Producto {
   id: number;
   codigo: string;
@@ -16,11 +18,18 @@ export interface Producto {
   categoria_id: number | null;
   activo: boolean;
   precio: {
+    id?: number;
+    producto_id?: number;
     precio_base: number | string;
+    precio_costo: number | string;
     precio_publico: number | string;
+    precio_iva: number | string;
+    precio_promo: number | string;
+    precio_descuento: number | string;
   } | null;
 }
 
+// DOCUMENTACIÓN: Interfaz que define la estructura de datos que el formulario envía.
 export interface ProductoFormData {
   codigo: string;
   nombre: string;
@@ -61,20 +70,22 @@ export const productoApi = {
       descripcion: data.descripcion || undefined,
       marca: data.marca || undefined,
       precio: {
-        precio_base: Number(data.precio.precio_base),
-        precio_publico: Number(data.precio.precio_publico),
-        precio_costo: data.precio.precio_costo ? Number(data.precio.precio_costo) : undefined,
-        precio_iva: data.precio.precio_iva ? Number(data.precio.precio_iva) : undefined,
-        precio_promo: data.precio.precio_promo ? Number(data.precio.precio_promo) : undefined,
-        precio_descuento: data.precio.precio_descuento ? Number(data.precio.precio_descuento) : undefined,
+        precio_base: Number(data.precio.precio_base) || 0,
+        precio_publico: Number(data.precio.precio_publico) || 0,
+        precio_costo: Number(data.precio.precio_costo) || 0,
+        precio_iva: Number(data.precio.precio_iva) || 0,
+        precio_promo: Number(data.precio.precio_promo) || 0,
+        precio_descuento: Number(data.precio.precio_descuento) || 0,
       }
     };
     const response = await api.post<Producto>('/productos/crear', payload);
     return response.data;
   },
 
+  // DOCUMENTACIÓN: Actualiza un producto existente.
+  // ✅ CORRECCIÓN CRÍTICA: Ahora envía el objeto 'precio' completo con todos sus campos.
+  // Esto permite que el backend actualice tanto la cabecera como los precios en una sola transacción atómica.
   actualizarProducto: async (id: number, data: ProductoFormData) => {
-    // El backend solo espera estos campos para actualizar (según tu schema ProductoUpdate)
     const payload = {
       codigo: data.codigo,
       nombre: data.nombre,
@@ -82,6 +93,14 @@ export const productoApi = {
       marca: data.marca || undefined,
       tipo: data.tipo,
       categoria_id: data.categoria_id ? Number(data.categoria_id) : undefined,
+      precio: {
+        precio_base: Number(data.precio.precio_base) || 0,
+        precio_publico: Number(data.precio.precio_publico) || 0,
+        precio_costo: Number(data.precio.precio_costo) || 0,
+        precio_iva: Number(data.precio.precio_iva) || 0,
+        precio_promo: Number(data.precio.precio_promo) || 0,
+        precio_descuento: Number(data.precio.precio_descuento) || 0,
+      }
     };
     const response = await api.put<Producto>(`/productos/actualizar/${id}`, payload);
     return response.data;

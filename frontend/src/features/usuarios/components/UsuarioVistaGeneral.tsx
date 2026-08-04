@@ -1,3 +1,5 @@
+// frontend/src/features/usuarios/components/UsuarioVistaGeneral.tsx
+
 import { useState, useEffect } from 'react';
 import { useUsuarios } from '../hooks/useUsuarios';
 import { Usuario } from '../api/usuario_api';
@@ -5,35 +7,38 @@ import { UsuarioFormulario } from './UsuarioFormulario';
 import { UsuarioTabla } from './UsuarioTabla';
 
 export function UsuarioVistaGeneral() {
-  // Estado centralizado para la búsqueda
+  // 📌 ESTADO CENTRALIZADO PARA LA BÚSQUEDA
   const [busqueda, setBusqueda] = useState('');
   const [busquedaDebounce, setBusquedaDebounce] = useState('');
   
-  // Debounce: espera 500ms después de que el usuario deje de escribir
+  // 📌 LÓGICA DE DEBOUNCE (OPTIMIZACIÓN DE RENDIMIENTO)
+  // ⚠️ Evita hacer una petición al backend por cada tecla pulsada. 
+  // Espera 500ms después de que el usuario deje de escribir antes de actualizar 'busquedaDebounce'.
   useEffect(() => {
     const timer = setTimeout(() => {
       if (busqueda.length >= 2 || busqueda === '') {
         setBusquedaDebounce(busqueda);
       }
     }, 500);
-    return () => clearTimeout(timer);
+    return () => clearTimeout(timer); // Limpia el timer si el usuario sigue escribiendo
   }, [busqueda]);
 
-  // Pasamos la búsqueda con debounce al hook para que consulte al backend
+  // 🔗 Pasa la búsqueda con debounce al hook. Si está vacío, pasa undefined para traer la lista por defecto.
   const { usuarios, isLoading, eliminarUsuario, isDeleting } = useUsuarios(busquedaDebounce || undefined);
   
   const [mensajeExito, setMensajeExito] = useState('');
   const [usuarioAEditar, setUsuarioAEditar] = useState<Usuario | null>(null);
   
-  // Estados para la doble advertencia de eliminación
+  // 📌 ESTADOS PARA LA DOBLE ADVERTENCIA DE ELIMINACIÓN (HARD DELETE)
   const [usuarioAEliminar, setUsuarioAEliminar] = useState<Usuario | null>(null);
-  const [showModal1, setShowModal1] = useState(false);
-  const [showModal2, setShowModal2] = useState(false);
+  const [showModal1, setShowModal1] = useState(false); // Paso 1: Confirmación inicial
+  const [showModal2, setShowModal2] = useState(false); // Paso 2: Confirmación por escritura
   const [confirmacionTexto, setConfirmacionTexto] = useState('');
 
+  // 📌 HANDLERS DE ACCIÓN
   const handleGuardado = () => {
     setMensajeExito(usuarioAEditar ? '✅ Usuario actualizado exitosamente.' : '✅ Usuario creado exitosamente.');
-    setUsuarioAEditar(null);
+    setUsuarioAEditar(null); // Sale del modo edición
     setTimeout(() => setMensajeExito(''), 3000);
   };
 
@@ -45,10 +50,11 @@ export function UsuarioVistaGeneral() {
   const confirmarPaso1 = () => {
     setShowModal1(false);
     setShowModal2(true);
-    setConfirmacionTexto('');
+    setConfirmacionTexto(''); // Limpia el input para el paso 2
   };
 
   const confirmarEliminacionFinal = async () => {
+    // ⚠️ VALIDACIÓN DE SEGURIDAD: Solo permite eliminar si el usuario escribió exactamente "ELIMINAR"
     if (confirmacionTexto.trim() === 'ELIMINAR' && usuarioAEliminar) {
       try {
         await eliminarUsuario(usuarioAEliminar.id);
@@ -68,19 +74,21 @@ export function UsuarioVistaGeneral() {
         <h1 className="text-2xl font-bold text-gray-800">Gestión de Usuarios</h1>
       </div>
 
+      {/* 📌 BANNER DE MENSAJES DE ÉXITO */}
       {mensajeExito && (
         <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg flex items-center gap-2 animate-pulse">
           {mensajeExito}
         </div>
       )}
 
+      {/* 📌 FORMULARIO (CREAR / EDITAR) */}
       <UsuarioFormulario 
         onGuardado={handleGuardado} 
         onCancelado={() => setUsuarioAEditar(null)}
         usuarioAEditar={usuarioAEditar}
       />
 
-      {/* Pasamos la búsqueda y la función para actualizarla a la tabla */}
+      {/* 📌 TABLA DE DATOS */}
       <UsuarioTabla 
         usuarios={usuarios} 
         isLoading={isLoading} 
@@ -90,7 +98,7 @@ export function UsuarioVistaGeneral() {
         onEliminarClick={handleEliminarClick}
       />
 
-      {/* MODAL 1: Primera advertencia */}
+      {/* 📌 MODAL 1: PRIMERA ADVERTENCIA */}
       {showModal1 && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
@@ -117,7 +125,7 @@ export function UsuarioVistaGeneral() {
         </div>
       )}
 
-      {/* MODAL 2: Segunda advertencia (Hard Delete) */}
+      {/* 📌 MODAL 2: SEGUNDA ADVERTENCIA (HARD DELETE CON CONFIRMACIÓN POR ESCRITURA) */}
       {showModal2 && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border-l-4 border-red-600">
@@ -147,6 +155,7 @@ export function UsuarioVistaGeneral() {
                 Cancelar
               </button>
               <button 
+                // ⚠️ El botón se habilita SOLO si el texto coincide exactamente y no está procesando
                 onClick={confirmarEliminacionFinal}
                 disabled={confirmacionTexto.trim() !== 'ELIMINAR' || isDeleting}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed font-medium flex items-center gap-2"

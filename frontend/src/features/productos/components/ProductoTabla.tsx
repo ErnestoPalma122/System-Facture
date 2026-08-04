@@ -1,3 +1,5 @@
+//frontend\src\features\productos\components\ProductoTabla.tsx
+
 import { useState, useEffect } from 'react';
 import { Producto, Categoria } from '../api/producto_api';
 
@@ -9,17 +11,19 @@ interface ProductoTablaProps {
 }
 
 export function ProductoTabla({ productos, categorias, isLoading, onEditar }: ProductoTablaProps) {
+  // DOCUMENTACIÓN: Estado local para el término de búsqueda y la lista filtrada de productos.
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
   const [productosFiltrados, setProductosFiltrados] = useState<Producto[]>(productos);
 
-  // Función para obtener el nombre de la categoría buscando por su ID
+  // DOCUMENTACIÓN: Función auxiliar para resolver el nombre de la categoría a partir de su ID.
   const obtenerNombreCategoria = (categoriaId: number | null) => {
     if (!categoriaId) return 'Sin categoría';
     const categoria = categorias.find(c => c.id === categoriaId);
     return categoria ? categoria.nombre : 'Sin categoría';
   };
 
-  // Filtrado con debounce: espera 500ms después de que el usuario deje de escribir
+  // DOCUMENTACIÓN: Efecto con debounce (500ms) para filtrar productos por código, nombre o marca.
+  // Evita filtrados excesivos en cada pulsación de tecla, mejorando el rendimiento.
   useEffect(() => {
     const timer = setTimeout(() => {
       if (terminoBusqueda.length >= 2) {
@@ -31,25 +35,25 @@ export function ProductoTabla({ productos, categorias, isLoading, onEditar }: Pr
         );
         setProductosFiltrados(filtrados);
       } else if (terminoBusqueda === '') {
-        // Si borra todo, mostrar todos los productos
         setProductosFiltrados(productos);
       }
-      // Si tiene 1 letra o menos, no hacer nada (mantener lista actual)
-    }, 500); // Espera 500ms (medio segundo)
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [terminoBusqueda, productos]);
 
+  // DOCUMENTACIÓN: Estado de carga visual mientras se obtienen los datos del backend.
   if (isLoading) {
     return <div className="p-8 text-center text-gray-600">Cargando productos...</div>;
   }
 
   return (
+    // DOCUMENTACIÓN: Contenedor principal de la tabla con estilos de tarjeta y overflow para responsividad.
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mt-6">
       <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-lg font-bold text-gray-800">Listado de Productos</h2>
         
-        {/* Barra de búsqueda dinámica */}
+        {/* DOCUMENTACIÓN: Barra de búsqueda con ícono y validación visual de longitud mínima */}
         <div className="relative w-full sm:w-72">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -69,6 +73,7 @@ export function ProductoTabla({ productos, categorias, isLoading, onEditar }: Pr
         </div>
       </div>
       
+      {/* DOCUMENTACIÓN: Barra de estado que muestra el conteo de resultados y botón para limpiar filtro */}
       <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center text-sm text-gray-600">
         <span>
           {terminoBusqueda.length >= 2 
@@ -86,6 +91,7 @@ export function ProductoTabla({ productos, categorias, isLoading, onEditar }: Pr
         )}
       </div>
 
+      {/* DOCUMENTACIÓN: Tabla de datos con encabezados fijos y mapeo de filas */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -137,14 +143,13 @@ export function ProductoTabla({ productos, categorias, isLoading, onEditar }: Pr
                 </tr>
               ))
             ) : (
+              // DOCUMENTACIÓN: Fila de estado vacío cuando no hay coincidencias o no hay productos registrados.
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                   {terminoBusqueda.length >= 2 ? (
                     <>
                       <p className="text-lg font-medium">No se encontraron productos</p>
-                      <p className="text-sm text-gray-400 mt-1">
-                        Intenta con otro término de búsqueda o limpia el filtro
-                      </p>
+                      <p className="text-sm text-gray-400 mt-1">Intenta con otro término de búsqueda o limpia el filtro</p>
                     </>
                   ) : (
                     <>

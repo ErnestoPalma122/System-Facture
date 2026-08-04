@@ -1,3 +1,5 @@
+// frontend/src/features/usuarios/components/UsuarioFormulario.tsx
+
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,12 +9,14 @@ import { useRoles } from '../hooks/useRoles';
 import { useDepartamentos } from '../hooks/useDepartamentos';
 import { Usuario, UsuarioFormData } from '../api/usuario_api';
 
+// 📌 ESQUEMA DE VALIDACIÓN (ZOD)
 const usuarioSchema = z.object({
   nombre: z.string().min(2, 'Mínimo 2 caracteres').max(100, 'Máximo 100 caracteres'),
   email: z.string().email('Correo electrónico inválido'),
   telefono: z.string().max(20, 'Máximo 20 caracteres').optional().or(z.literal('')),
   departamento_id: z.string().optional().or(z.literal('')),
   rol_id: z.string().min(1, 'El rol es obligatorio'),
+  // ⚠️ La contraseña es opcional en edición, pero obligatoria (min 8) si se proporciona.
   password: z.string().min(8, 'Mínimo 8 caracteres').optional().or(z.literal('')),
 });
 
@@ -21,7 +25,7 @@ type FormValues = z.infer<typeof usuarioSchema>;
 interface UsuarioFormularioProps {
   onGuardado: () => void;
   onCancelado: () => void;
-  usuarioAEditar?: Usuario | null;
+  usuarioAEditar?: Usuario | null; // 🔗 Si existe, el form entra en "Modo Edición"
 }
 
 export function UsuarioFormulario({ onGuardado, onCancelado, usuarioAEditar }: UsuarioFormularioProps) {
@@ -30,6 +34,7 @@ export function UsuarioFormulario({ onGuardado, onCancelado, usuarioAEditar }: U
   const { data: departamentos = [] } = useDepartamentos();
   const isSubmitting = isCreating || isUpdating;
 
+  // 📌 CONFIGURACIÓN DE REACT HOOK FORM
   const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<FormValues>({
     resolver: zodResolver(usuarioSchema),
     defaultValues: {
@@ -37,21 +42,26 @@ export function UsuarioFormulario({ onGuardado, onCancelado, usuarioAEditar }: U
     },
   });
 
+  // 📌 SINCRONIZACIÓN DE DATOS PARA EDICIÓN
   useEffect(() => {
     if (usuarioAEditar) {
+      // Rellena el formulario con los datos del usuario seleccionado
       setValue('nombre', usuarioAEditar.nombre);
       setValue('email', usuarioAEditar.email);
       setValue('telefono', usuarioAEditar.telefono || '');
       setValue('departamento_id', usuarioAEditar.departamento_id ? String(usuarioAEditar.departamento_id) : '');
       setValue('rol_id', usuarioAEditar.rol_id ? String(usuarioAEditar.rol_id) : '');
-      setValue('password', ''); // No mostramos la contraseña actual
+      // ⚠️ CRÍTICO: Nunca mostramos la contraseña actual. Se deja vacía.
+      setValue('password', ''); 
     } else {
-      reset();
+      reset(); // Limpia el formulario al cambiar a "Modo Creación"
     }
   }, [usuarioAEditar, reset, setValue]);
 
+  // 📌 MANEJADOR DE ENVÍO
   const onSubmit = async (data: FormValues) => {
     try {
+      // Construye el payload final, convirtiendo cadenas vacías a 'undefined' para no enviar datos basura
       const payload: UsuarioFormData = {
         nombre: data.nombre,
         email: data.email,
@@ -67,8 +77,8 @@ export function UsuarioFormulario({ onGuardado, onCancelado, usuarioAEditar }: U
         await crearUsuario(payload);
       }
       
-      reset();
-      onGuardado();
+      reset(); // Limpia el formulario tras el éxito
+      onGuardado(); // Notifica al padre para mostrar mensaje y recargar tabla
     } catch (error: any) {
       console.error('Error al guardar usuario:', error);
       alert(error.response?.data?.detail || '❌ Error al guardar el usuario.');
@@ -125,6 +135,7 @@ export function UsuarioFormulario({ onGuardado, onCancelado, usuarioAEditar }: U
           </label>
           <input 
             type="password" 
+            // ⚠️ Validación condicional: solo es required si NO estamos editando.
             {...register('password', { required: !usuarioAEditar ? 'La contraseña es obligatoria' : false })} 
             className={inputClass} 
             placeholder={usuarioAEditar ? "Opcional" : "Mínimo 8 caracteres"} 

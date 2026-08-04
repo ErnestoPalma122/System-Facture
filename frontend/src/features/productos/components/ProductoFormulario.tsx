@@ -1,4 +1,3 @@
-// C:\Users\PC\Desktop\Factu\frontend\src\features\productos\components\ProductoFormulario.tsx
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,6 +5,7 @@ import { z } from 'zod';
 import { useProductos } from '../hooks/useProductos';
 import { Producto, ProductoFormData } from '../api/producto_api';
 
+// DOCUMENTACIÓN: Esquema de validación con Zod para el formulario de productos.
 const productoSchema = z.object({
   codigo: z.string().min(2, 'Mínimo 2 caracteres').max(50, 'Máximo 50 caracteres'),
   nombre: z.string().min(2, 'Mínimo 2 caracteres').max(150, 'Máximo 150 caracteres'),
@@ -43,7 +43,8 @@ export function ProductoFormulario({ onGuardado, onCancelado, productoAEditar }:
     },
   });
 
-  // Cargar datos en el formulario cuando hay un producto a editar
+  // DOCUMENTACIÓN: Efecto secundario para cargar los datos en el formulario cuando se selecciona un producto para editar.
+  // ✅ ACTUALIZACIÓN: Ahora carga TODOS los campos de precio para permitir su edición completa, cumpliendo con el requisito.
   useEffect(() => {
     if (productoAEditar) {
       setValue('codigo', productoAEditar.codigo);
@@ -52,13 +53,14 @@ export function ProductoFormulario({ onGuardado, onCancelado, productoAEditar }:
       setValue('marca', productoAEditar.marca || '');
       setValue('tipo', productoAEditar.tipo as 'BIEN' | 'SERVICIO');
       setValue('categoria_id', productoAEditar.categoria_id ? String(productoAEditar.categoria_id) : '');
+      
       if (productoAEditar.precio) {
         setValue('precio.precio_base', String(productoAEditar.precio.precio_base));
         setValue('precio.precio_publico', String(productoAEditar.precio.precio_publico));
-        setValue('precio.precio_costo', '');
-        setValue('precio.precio_iva', '');
-        setValue('precio.precio_promo', '');
-        setValue('precio.precio_descuento', '');
+        setValue('precio.precio_costo', String(productoAEditar.precio.precio_costo || ''));
+        setValue('precio.precio_iva', String(productoAEditar.precio.precio_iva || ''));
+        setValue('precio.precio_promo', String(productoAEditar.precio.precio_promo || ''));
+        setValue('precio.precio_descuento', String(productoAEditar.precio.precio_descuento || ''));
       }
     } else {
       reset();
@@ -101,6 +103,7 @@ export function ProductoFormulario({ onGuardado, onCancelado, productoAEditar }:
   const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1";
   const errorClass = "text-red-500 text-xs mt-1";
+  const requiredAsterisk = <span className="text-red-500 font-bold ml-1">*</span>;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-6">
@@ -110,12 +113,12 @@ export function ProductoFormulario({ onGuardado, onCancelado, productoAEditar }:
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
-          <label className={labelClass}>Código *</label>
+          <label className={labelClass}>Código {requiredAsterisk}</label>
           <input {...register('codigo')} className={inputClass} placeholder="Ej: PROD-001" />
           {errors.codigo && <p className={errorClass}>{errors.codigo.message}</p>}
         </div>
         <div>
-          <label className={labelClass}>Nombre *</label>
+          <label className={labelClass}>Nombre {requiredAsterisk}</label>
           <input {...register('nombre')} className={inputClass} placeholder="Nombre del producto" />
           {errors.nombre && <p className={errorClass}>{errors.nombre.message}</p>}
         </div>
@@ -128,7 +131,7 @@ export function ProductoFormulario({ onGuardado, onCancelado, productoAEditar }:
           <input {...register('descripcion')} className={inputClass} placeholder="Descripción detallada (opcional)" />
         </div>
         <div>
-          <label className={labelClass}>Tipo *</label>
+          <label className={labelClass}>Tipo {requiredAsterisk}</label>
           <select {...register('tipo')} className={inputClass}>
             <option value="BIEN">Bien</option>
             <option value="SERVICIO">Servicio</option>
@@ -149,12 +152,12 @@ export function ProductoFormulario({ onGuardado, onCancelado, productoAEditar }:
         <h3 className="text-md font-semibold text-gray-700 mb-3">Precios</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className={labelClass}>Precio Base *</label>
+            <label className={labelClass}>Precio Base {requiredAsterisk}</label>
             <input type="number" step="0.01" {...register('precio.precio_base')} className={inputClass} placeholder="0.00" />
             {errors.precio?.precio_base && <p className={errorClass}>{errors.precio.precio_base.message}</p>}
           </div>
           <div>
-            <label className={labelClass}>Precio Público *</label>
+            <label className={labelClass}>Precio Público {requiredAsterisk}</label>
             <input type="number" step="0.01" {...register('precio.precio_publico')} className={inputClass} placeholder="0.00" />
             {errors.precio?.precio_publico && <p className={errorClass}>{errors.precio.precio_publico.message}</p>}
           </div>

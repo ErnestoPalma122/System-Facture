@@ -1,33 +1,43 @@
 // frontend/src/features/bodegas/components/BodegaForm.tsx
+
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useBodegas } from '../hooks/useBodegas';
-import { useUsuarios } from '@/features/usuarios/hooks/useUsuarios'; // <-- NUEVO
+import { useUsuarios } from '@/features/usuarios/hooks/useUsuarios'; // <-- NUEVO: Hook para obtener la lista de usuarios
 import { Bodega } from '../api/bodega_api';
 
+// 📌 ESQUEMA DE VALIDACIÓN CON ZOD
+// Define las reglas del formulario. 
+// ⚠️ Nota: Los campos opcionales usan .optional().or(z.literal('')) para aceptar tanto 'undefined' como cadenas vacías ''.
+// ⚠️ 'encargado_id' se maneja como string en el formulario (para el input de texto) y se convierte a número al enviar.
 const bodegaSchema = z.object({
   nombre: z.string().min(2, 'Mínimo 2 caracteres').max(100, 'Máximo 100 caracteres'),
   direccion: z.string().max(255, 'Máximo 255 caracteres').optional().or(z.literal('')),
   ubicacion: z.string().max(150, 'Máximo 150 caracteres').optional().or(z.literal('')),
   telefono: z.string().max(20, 'Máximo 20 caracteres').optional().or(z.literal('')),
-  encargado_id: z.string().optional(), // Se maneja como string en el form, se convierte a number al enviar
+  encargado_id: z.string().optional(), 
 });
 
 type BodegaFormData = z.infer<typeof bodegaSchema>;
 
+// 📌 COMPONENTE PRINCIPAL DE LA PÁGINA DE BODEGAS
+// Combina la visualización de la tabla (Datagrid) y el modal de creación/edición en un solo componente.
 export function BodegaPage() {
+  // 🔗 Hooks personalizados para obtener datos y acciones del servidor
   const { bodegas, isLoading: isLoadingBodegas, crearBodega, actualizarBodega, isCreating, isUpdating } = useBodegas();
-  const { usuarios, isLoading: isLoadingUsuarios } = useUsuarios(); // <-- NUEVO
+  const { usuarios, isLoading: isLoadingUsuarios } = useUsuarios(); 
   
+  // 📌 ESTADOS LOCALES DE LA UI
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBodega, setEditingBodega] = useState<Bodega | null>(null);
   
-  // Estados para el filtro dinámico de usuarios
+  // Estados para el filtro dinámico (autocomplete) de usuarios
   const [busquedaEncargado, setBusquedaEncargado] = useState('');
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
 
+  // 📌 CONFIGURACIÓN DE REACT HOOK FORM
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<BodegaFormData>({
     resolver: zodResolver(bodegaSchema),
     defaultValues: {
@@ -39,7 +49,9 @@ export function BodegaPage() {
     },
   });
 
-  // Sincronizar el texto del buscador cuando se abre el modal para editar
+  // 📌 EFECTO: SINCRONIZAR BUSCADOR AL EDITAR
+  // Cuando se abre el modal en modo edición, busca el nombre del usuario correspondiente al 'encargado_id' 
+  // y lo muestra en el input de búsqueda para que el usuario vea quién está asignado.
   useEffect(() => {
     if (editingBodega && editingBodega.encargado_id) {
       const usuarioEncontrado = usuarios.find(u => u.id === editingBodega.encargado_id);
@@ -49,6 +61,7 @@ export function BodegaPage() {
     }
   }, [editingBodega, usuarios]);
 
+  // 📌 HANDLERS: ABRIR MODAL EN MODO CREACIÓN
   const handleOpenCreate = () => {
     setEditingBodega(null);
     setBusquedaEncargado('');
@@ -56,6 +69,7 @@ export function BodegaPage() {
     setIsModalOpen(true);
   };
 
+  // 📌 HANDLERS: ABRIR MODAL EN MODO EDICIÓN
   const handleOpenEdit = (bodega: Bodega) => {
     setEditingBodega(bodega);
     reset({
@@ -63,19 +77,23 @@ export function BodegaPage() {
       direccion: bodega.direccion || '',
       ubicacion: bodega.ubicacion || '',
       telefono: bodega.telefono || '',
-      encargado_id: bodega.encargado_id ? String(bodega.encargado_id) : '',
+      encargado_id: bodega.encargado_id ? String(bodega.encargado_id) : '', // 🔗 Convierte number a string para el formulario
     });
     setIsModalOpen(true);
   };
 
+  // 📌 HANDLER: ENVÍO DEL FORMULARIO
   const onSubmit = async (data: BodegaFormData) => {
     try {
+      // ⚠️ TRANSFORMACIÓN DE PAYLOAD: Convierte los datos del formulario al formato que espera la API.
+      // Convierte 'encargado_id' de string a number (o undefined si está vacío).
+      // Convierte cadenas vacías a 'undefined' para no enviar campos nulos innecesarios.
       const payload = {
         nombre: data.nombre,
         direccion: data.direccion || undefined,
         ubicacion: data.ubicacion || undefined,
         telefono: data.telefono || undefined,
-        encargado_id: data.encargado_id ? parseInt(data.encargado_id, 10) : undefined, // <-- Guarda solo el ID
+        encargado_id: data.encargado_id ? parseInt(data.encargado_id, 10) : undefined, 
       };
 
       if (editingBodega) {
@@ -83,6 +101,8 @@ export function BodegaPage() {
       } else {
         await crearBodega(payload);
       }
+      
+      // Limpieza post-éxito
       setIsModalOpen(false);
       reset();
     } catch (error) {
@@ -91,19 +111,21 @@ export function BodegaPage() {
     }
   };
 
-  // Filtrar usuarios para el autocomplete (por nombre o email)
+  // 📌 LÓGICA DE AUTOCOMPLETE: FILTRAR USUARIOS
+  // Filtra la lista de usuarios en tiempo real por nombre o email, ignorando mayúsculas/minúsculas.
   const sugerencias = usuarios.filter(u => 
     u.nombre.toLowerCase().includes(busquedaEncargado.toLowerCase()) ||
     u.email.toLowerCase().includes(busquedaEncargado.toLowerCase())
   );
 
+  // 📌 ESTADO DE CARGA INICIAL
   if (isLoadingBodegas || isLoadingUsuarios) {
     return <div className="p-8 text-center text-gray-600">Cargando datos...</div>;
   }
 
   return (
     <div className="p-6 space-y-6">
-      {/* Encabezado */}
+      {/* 📌 ENCABEZADO DE LA PÁGINA */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800">Gestión de Bodegas</h1>
         <button 
@@ -114,7 +136,7 @@ export function BodegaPage() {
         </button>
       </div>
 
-      {/* Datagrid (Tabla) de Bodegas */}
+      {/* 📌 DATAGRID (TABLA) DE BODEGAS */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -132,7 +154,7 @@ export function BodegaPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {bodegas.length > 0 ? (
                 bodegas.map((bodega) => {
-                  // Cruce visual: buscar el nombre del usuario usando el ID
+                  // 🔗 CRUCE VISUAL (JOIN): Busca el objeto usuario completo usando el 'encargado_id' de la bodega.
                   const encargado = usuarios.find(u => u.id === bodega.encargado_id);
                   
                   return (
@@ -150,7 +172,7 @@ export function BodegaPage() {
                         <div className="text-sm text-gray-600">{bodega.telefono || <span className="text-gray-400">-</span>}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {/* AQUÍ SE MUESTRA EL NOMBRE EN LUGAR DEL ID */}
+                        {/* 📌 MUESTRA EL NOMBRE DEL USUARIO EN LUGAR DEL ID NUMÉRICO */}
                         <div className="text-sm text-gray-900 font-medium">
                           {encargado ? encargado.nombre : <span className="text-gray-400">Sin asignar</span>}
                         </div>
@@ -175,6 +197,7 @@ export function BodegaPage() {
                   );
                 })
               ) : (
+                // 📌 ESTADO VACÍO (EMPTY STATE) DE LA TABLA
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center justify-center">
@@ -189,7 +212,7 @@ export function BodegaPage() {
         </div>
       </div>
 
-      {/* Modal de Formulario */}
+      {/* 📌 MODAL DE FORMULARIO (CREAR / EDITAR) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -223,7 +246,7 @@ export function BodegaPage() {
                 </div>
               </div>
 
-              {/* FILTRO DINÁMICO DE USUARIOS */}
+              {/* 📌 CAMPO DE AUTOCOMPLETE PERSONALIZADO PARA "ENCARGADO" */}
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Encargado (Buscar por nombre)</label>
                 <input 
@@ -232,14 +255,14 @@ export function BodegaPage() {
                   onChange={(e) => {
                     setBusquedaEncargado(e.target.value);
                     setMostrarSugerencias(true);
-                    setValue('encargado_id', ''); // Limpiar el ID oculto si el usuario empieza a escribir de nuevo
+                    setValue('encargado_id', ''); // 🔗 Limpia el ID oculto si el usuario modifica el texto manualmente
                   }}
                   onFocus={() => setMostrarSugerencias(true)}
                   placeholder="Escribe el nombre del usuario..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
                 
-                {/* Lista de sugerencias desplegable */}
+                {/* 📌 LISTA DESPLEGABLE DE SUGERENCIAS */}
                 {mostrarSugerencias && busquedaEncargado.length > 0 && (
                   <ul className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 overflow-y-auto mt-1">
                     {sugerencias.length > 0 ? (
@@ -247,8 +270,8 @@ export function BodegaPage() {
                         <li 
                           key={u.id}
                           onClick={() => {
-                            setBusquedaEncargado(u.nombre); // Muestra el nombre en el input
-                            setValue('encargado_id', String(u.id)); // Guarda el ID en el campo oculto del formulario
+                            setBusquedaEncargado(u.nombre); // Muestra el nombre legible en el input
+                            setValue('encargado_id', String(u.id)); // 🔗 Guarda el ID numérico (como string) en el campo oculto de RHF
                             setMostrarSugerencias(false);
                           }}
                           className="px-4 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-0 transition-colors"
@@ -262,10 +285,11 @@ export function BodegaPage() {
                     )}
                   </ul>
                 )}
-                {/* Campo oculto que react-hook-form usa para enviar el ID al backend */}
+                {/* ⚠️ CAMPO OCULTO: React Hook Form usa este input para gestionar el valor de 'encargado_id' */}
                 <input type="hidden" {...register('encargado_id')} />
               </div>
 
+              {/* 📌 BOTONES DE ACCIÓN DEL MODAL */}
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
                   Cancelar
@@ -279,7 +303,8 @@ export function BodegaPage() {
         </div>
       )}
       
-      {/* Capa invisible para cerrar las sugerencias al hacer clic fuera */}
+      {/* 📌 OVERLAY INVISIBLE PARA CERRAR SUGERENCIAS AL HACER CLIC FUERA */}
+      {/* z-10 asegura que esté por debajo del modal (z-50) pero por encima del contenido de la página */}
       {mostrarSugerencias && (
         <div className="fixed inset-0 z-10" onClick={() => setMostrarSugerencias(false)}></div>
       )}

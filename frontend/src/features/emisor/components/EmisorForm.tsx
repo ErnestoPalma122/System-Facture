@@ -1,5 +1,6 @@
-//frontend\src\features\emisor\components\EmisorForm.tsx
-import {  useEffect } from 'react';
+// frontend/src/features/emisor/components/EmisorForm.tsx
+
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,7 +10,8 @@ import { EmisorFormData, EmisorResponse } from '../api/emisor_api';
 import { UbicacionSelector } from './UbicacionSelector';
 import { ActividadEconomicaSelector } from './ActividadEconomicaSelector';
 
-// 1. Schema de validación completo
+// 📌 1. ESQUEMA DE VALIDACIÓN COMPLETO CON ZOD
+// Define reglas estrictas para todos los campos, incluyendo el objeto anidado 'direccion'.
 const emisorSchema = z.object({
   nit: z.string().min(1, 'Requerido'),
   nrc: z.string().min(2, 'Mínimo 2 caracteres').max(8, 'Máximo 8 caracteres'),
@@ -33,7 +35,8 @@ const emisorSchema = z.object({
   cod_punto_venta: z.string().min(1, 'Requerido').max(15, 'Máximo 15 caracteres'),
 });
 
-// Función para mapear la respuesta plana del backend al formato anidado del formulario
+// 📌 2. FUNCIÓN DE MAPEO (RESPUESTA BACKEND -> FORMULARIO)
+// Transforma la estructura "plana" que devuelve el backend en la estructura "anidada" que espera el formulario (y Zod).
 const mapResponseToForm = (res: EmisorResponse): EmisorFormData => ({
   nit: res.nit,
   nrc: res.nrc,
@@ -48,7 +51,7 @@ const mapResponseToForm = (res: EmisorResponse): EmisorFormData => ({
     desc_municipio: res.desc_municipio,
     cod_distrito: res.cod_distrito,
     desc_distrito: res.desc_distrito,
-    complemento: res.dirr_complemento,
+    complemento: res.dirr_complemento, // ⚠️ Nota: mapeo del nombre de campo diferente del backend
   },
   telefono: res.telefono,
   correo: res.correo,
@@ -61,6 +64,7 @@ export function EmisorConfigPage() {
   const { emisor, isLoading, isError, crearEmisor, actualizarEmisor, isCreating, isUpdating } = useEmisor();
   const { catalogos, isLoading: isLoadingCatalogos } = useCatalogos();
   
+  // 📌 3. CONFIGURACIÓN DE REACT HOOK FORM
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EmisorFormData>({
     resolver: zodResolver(emisorSchema),
     defaultValues: {
@@ -71,20 +75,23 @@ export function EmisorConfigPage() {
     }
   });
 
-  // Cargar datos si existen
+  // 📌 4. CARGA DE DATOS EXISTENTES
+  // Cuando el hook 'useEmisor' termina de cargar, si existe un emisor, rellena el formulario.
   useEffect(() => {
     if (emisor) {
       reset(mapResponseToForm(emisor));
     }
   }, [emisor, reset]);
 
-  // 2. Función onSubmit completa
+  // 📌 5. MANEJADOR DE ENVÍO
   const onSubmit = async (data: EmisorFormData) => {
     try {
       if (emisor) {
+        // Si ya existe, actualizamos
         await actualizarEmisor(data);
         alert('✅ Configuración del emisor actualizada exitosamente.');
       } else {
+        // Si no existe, creamos
         await crearEmisor(data);
         alert('✅ Configuración del emisor creada exitosamente.');
       }
@@ -98,6 +105,7 @@ export function EmisorConfigPage() {
     return <div className="p-8 text-center text-gray-600">Cargando datos del sistema...</div>;
   }
 
+  // 🔗 Determina si estamos en modo "Creación" (si hubo error 404 o no hay datos cargados).
   const modoCreacion = isError || (!emisor && !isLoading);
 
   return (
@@ -115,7 +123,7 @@ export function EmisorConfigPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-8">
         
-        {/* Sección 1: Datos Fiscales */}
+        {/* 📌 SECCIÓN 1: DATOS FISCALES PRINCIPALES */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Datos Fiscales Principales</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -142,7 +150,7 @@ export function EmisorConfigPage() {
           </div>
         </div>
 
-        {/* Sección 2: Actividad Económica */}
+        {/* 📌 SECCIÓN 2: ACTIVIDAD ECONÓMICA */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Actividad Económica</h3>
           {catalogos?.['cat-019-actividad-economica'] ? (
@@ -151,19 +159,19 @@ export function EmisorConfigPage() {
               setValue={setValue} 
               watch={watch} 
               errors={errors} 
-              />
+            />
           ) : (
             <p className="text-red-500 text-sm">No se pudo cargar el catálogo de actividades económicas.</p>
           )}
         </div>
 
-        {/* Sección 3: Dirección */}
+        {/* 📌 SECCIÓN 3: DIRECCIÓN (CATÁLOGOS DE HACIENDA) */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Dirección (Catálogos de Hacienda)</h3>
           {catalogos?.['cat-008-distrito'] ? (
             <UbicacionSelector 
               catalogData={catalogos['cat-008-distrito']} 
-              register={register} /* <-- AQUÍ ESTABA EL ERROR, YA AGREGADO */
+              register={register} /* 🔗 Se pasa register para el campo de texto 'complemento' */
               setValue={setValue} 
               watch={watch} 
               errors={errors} 
@@ -173,7 +181,7 @@ export function EmisorConfigPage() {
           )}
         </div>
 
-        {/* Sección 4: Contacto */}
+        {/* 📌 SECCIÓN 4: DATOS DE CONTACTO */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Datos de Contacto</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -195,7 +203,7 @@ export function EmisorConfigPage() {
           </div>
         </div>
 
-        {/* Sección 5: Códigos Internos */}
+        {/* 📌 SECCIÓN 5: CÓDIGOS INTERNOS */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Códigos Internos del Contribuyente</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -212,7 +220,7 @@ export function EmisorConfigPage() {
           </div>
         </div>
 
-        {/* Botones de Acción */}
+        {/* 📌 BOTONES DE ACCIÓN */}
         <div className="flex justify-end gap-4 pt-6 border-t">
           <button 
             type="button" 

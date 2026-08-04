@@ -1,4 +1,5 @@
-//frontend\src\features\proveedores\components\ProveedorList.tsx.tsx
+// frontend\src\features\proveedores\components\ProveedorList.tsx.tsx
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,7 +8,9 @@ import { useProveedores } from '../hooks/useProveedores';
 import { Proveedor, ProveedorFormData } from '../api/proveedor_api';
 import { FiltroBusquedaProveedores } from './filtro_busqueda_proveedores';
 
-// Validación: nombre, direccion y telefono1 son obligatorios
+// 📌 ESQUEMA DE VALIDACIÓN (ZOD)
+// Define las reglas estrictas para el formulario. Los campos opcionales aceptan cadenas vacías ('') 
+// para que el usuario pueda borrar el contenido sin que Zod lance un error de tipo.
 const proveedorSchema = z.object({
   nombre: z.string().min(2, 'Mínimo 2 caracteres').max(150, 'Máximo 150 caracteres'),
   direccion: z.string().min(1, 'La dirección es obligatoria').max(255, 'Máximo 255 caracteres'),
@@ -18,15 +21,19 @@ const proveedorSchema = z.object({
   observaciones: z.string().optional().or(z.literal('')),
 });
 
+// 📌 COMPONENTE PRINCIPAL: LISTA Y FORMULARIO DE PROVEEDORES
+// Utiliza un diseño de "Panel Lateral" (Slide-over) para el formulario, manteniendo la tabla visible.
 export function ProveedorList() {
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Pasamos el searchTerm al hook para que refetch cuando cambie
+  // 🔗 Pasa el 'searchTerm' directamente al hook. Cuando cambia, el hook invalida la consulta y hace refetch.
   const { proveedores, isLoading, crearProveedor, actualizarProveedor, eliminarProveedor, isCreating, isUpdating, isDeleting } = useProveedores(searchTerm);
   
-  const [showForm, setShowForm] = useState(false);
-  const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
+  // 📌 ESTADOS DE LA UI
+  const [showForm, setShowForm] = useState(false); // Controla la visibilidad del panel lateral
+  const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null); // Null = Modo Creación, Objeto = Modo Edición
 
+  // 📌 CONFIGURACIÓN DE REACT HOOK FORM
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ProveedorFormData>({
     resolver: zodResolver(proveedorSchema),
     defaultValues: {
@@ -34,6 +41,7 @@ export function ProveedorList() {
     },
   });
 
+  // 📌 HANDLERS DE APERTURA/CIERRE DEL FORMULARIO
   const handleOpenCreate = () => {
     setEditingProveedor(null);
     reset({ nombre: '', direccion: '', contacto: '', email: '', telefono1: '', telefono2: '', observaciones: '' });
@@ -57,11 +65,13 @@ export function ProveedorList() {
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingProveedor(null);
-    reset();
+    reset(); // Limpia el formulario y los errores al cerrar
   };
 
+  // 📌 MANEJADOR DE ENVÍO DEL FORMULARIO
   const onSubmit = async (data: ProveedorFormData) => {
     try {
+      // ⚠️ TRANSFORMACIÓN DE PAYLOAD: Convierte cadenas vacías a 'undefined' para no enviar campos nulos innecesarios al backend.
       const payload = {
         ...data,
         contacto: data.contacto || undefined,
@@ -75,14 +85,16 @@ export function ProveedorList() {
       } else {
         await crearProveedor(payload);
       }
-      handleCloseForm();
+      handleCloseForm(); // Cierra el panel y limpia el estado tras el éxito
     } catch (error: any) {
       console.error('Error al guardar proveedor:', error);
       alert(error.response?.data?.detail || '❌ Error al guardar el proveedor.');
     }
   };
 
+  // 📌 MANEJADOR DE ELIMINACIÓN (SOFT DELETE)
   const handleDelete = async (id: number, nombre: string) => {
+    // 🔗 Confirmación nativa del navegador antes de ejecutar la acción destructiva.
     if (window.confirm(`¿Estás seguro de que deseas desactivar al proveedor "${nombre}"?`)) {
       try {
         await eliminarProveedor(id);
@@ -93,14 +105,16 @@ export function ProveedorList() {
   };
 
   return (
+    // 📌 LAYOUT PRINCIPAL: Altura calculada para ocupar la pantalla menos el header, con gap entre columnas.
     <div className="p-6 h-[calc(100vh-80px)] flex gap-6 relative">
       
-      {/* SECCIÓN IZQUIERDA: Datagrid (Tabla) */}
+      {/* 📌 SECCIÓN IZQUIERDA: DATAGRID (TABLA) */}
+      {/* 🔗 La clase 'lg:mr-[400px]' empuja el contenido para que no quede oculto detrás del panel lateral en pantallas grandes. */}
       <div className={`flex-1 transition-all duration-300 ${showForm ? 'mr-0 lg:mr-[400px]' : ''}`}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <h1 className="text-2xl font-bold text-gray-800">Gestión de Proveedores</h1>
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            {/* Pasamos isLoading para que el input muestre el spinner */}
+            {/* Pasamos isLoading para que el input de búsqueda muestre el spinner cuando consulta al backend */}
             <FiltroBusquedaProveedores onSearch={setSearchTerm} isLoading={isLoading} />
             <button 
               onClick={handleOpenCreate}
@@ -124,6 +138,7 @@ export function ProveedorList() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
+                {/* 📌 ESTADO DE CARGA DE LA TABLA */}
                 {isLoading ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
@@ -137,6 +152,7 @@ export function ProveedorList() {
                     </td>
                   </tr>
                 ) : proveedores.length > 0 ? (
+                  // 📌 MAPEO DE FILAS DE PROVEEDORES
                   proveedores.map((prov) => (
                     <tr key={prov.id} className="hover:bg-gray-50 transition-colors duration-150">
                       <td className="px-6 py-4">
@@ -163,6 +179,7 @@ export function ProveedorList() {
                         >
                           ✏️ Editar
                         </button>
+                        {/* ⚠️ Solo se muestra el botón de desactivar si el proveedor está actualmente activo. */}
                         {prov.activo && (
                           <button 
                             onClick={() => handleDelete(prov.id, prov.nombre)}
@@ -176,6 +193,7 @@ export function ProveedorList() {
                     </tr>
                   ))
                 ) : (
+                  // 📌 ESTADO VACÍO (EMPTY STATE) DIFERENCIADO
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                       <p className="text-lg font-medium">
@@ -193,7 +211,8 @@ export function ProveedorList() {
         </div>
       </div>
 
-      {/* SECCIÓN DERECHA: Panel Lateral de Formulario */}
+      {/* 📌 SECCIÓN DERECHA: PANEL LATERAL DE FORMULARIO (SLIDE-OVER) */}
+      {/* 🔗 'fixed inset-y-0 right-0' lo fija a la derecha. 'z-40' asegura que esté por encima de la tabla. */}
       {showForm && (
         <div className="fixed inset-y-0 right-0 w-full lg:w-[400px] bg-white shadow-2xl border-l border-gray-200 transform transition-transform duration-300 ease-in-out z-40 overflow-y-auto">
           <div className="p-6">
@@ -245,6 +264,7 @@ export function ProveedorList() {
                 <textarea {...register('observaciones')} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" />
               </div>
 
+              {/* 📌 BOTONES DE ACCIÓN DEL PANEL */}
               <div className="flex gap-3 pt-4 border-t mt-6">
                 <button 
                   type="button" 
@@ -266,6 +286,9 @@ export function ProveedorList() {
         </div>
       )}
       
+      {/* 📌 OVERLAY DE FONDO PARA MÓVILES */}
+      {/* 🔗 'lg:hidden' asegura que este fondo oscuro solo aparezca en pantallas pequeñas, 
+          permitiendo hacer clic fuera del panel para cerrarlo, mejorando la UX en móviles. */}
       {showForm && (
         <div className="fixed inset-0 bg-black/20 z-30 lg:hidden" onClick={handleCloseForm}></div>
       )}

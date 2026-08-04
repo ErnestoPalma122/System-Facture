@@ -1,3 +1,5 @@
+// frontend\src\features\dashboard\pages\Dashboard.tsx
+
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -5,25 +7,36 @@ import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
 
 /**
- * Layout Principal del Sistema.
- * Envuelve todas las rutas protegidas con el Sidebar y el Header.
+ * 📌 LAYOUT PRINCIPAL DEL SISTEMA (Dashboard Wrapper)
+ * Este componente actúa como contenedor para TODAS las rutas protegidas.
+ * Renderiza el Sidebar y el Header de forma fija, y usa <Outlet /> para renderizar 
+ * dinámicamente el contenido de la ruta hija activa (ej: Bodegas, Productos, etc.).
  */
 export function Dashboard() {
   const { user } = useAuthStore();
-  // Estado para controlar si el sidebar está abierto (expandido) o colapsado
+  // 🔗 Estado local para controlar la expansión/colapso del sidebar.
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
+    // 📌 ESTRUCTURA FLEX: 'min-h-screen' asegura que ocupe toda la altura. 'overflow-hidden' en el contenedor 
+    // evita scrolls dobles, delegando el scroll solo al área de contenido principal (<main>).
     <div className="min-h-screen bg-gray-50 flex overflow-hidden">
+      
+      {/* Sidebar recibe el estado y la función para actualizarse */}
       <Sidebar user={user} isOpen={isSidebarOpen} />
       
+      {/* 📌 ÁREA DE CONTENIDO PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
+        
+        {/* Header recibe el estado y la función toggle para controlar el botón de menú */}
         <Header 
           user={user} 
           isSidebarOpen={isSidebarOpen} 
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
         />
         
+        {/* 🔗 <Outlet /> es el placeholder de React Router donde se renderizarán las rutas hijas (ej: /bodegas). */}
+        {/* 'overflow-y-auto' permite que solo esta sección haga scroll si el contenido es muy largo. */}
         <main className="flex-1 p-8 overflow-y-auto">
           <Outlet />
         </main>
@@ -33,12 +46,13 @@ export function Dashboard() {
 }
 
 /**
- * Página de inicio del Dashboard (se muestra cuando la ruta es exactamente "/")
- * Diseño mejorado con feedback visual profesional.
+ * 📌 PÁGINA DE INICIO DEL DASHBOARD (DashboardHome)
+ * Se muestra cuando la ruta es exactamente "/". Contiene estadísticas y accesos rápidos.
  */
 export function DashboardHome() {
   const { user } = useAuthStore();
 
+  // 🔗 Lógica para un saludo dinámico basado en la hora del sistema.
   const getSaludo = () => {
     const hora = new Date().getHours();
     if (hora < 12) return "Buenos días";
@@ -50,7 +64,8 @@ export function DashboardHome() {
 
   return (
     <div className="space-y-8">
-      {/* 1. SECCIÓN DE BIENVENIDA Y PERFIL */}
+      {/* 📌 1. SECCIÓN DE BIENVENIDA Y PERFIL */}
+      {/* Usa un gradiente y 'backdrop-blur' para un diseño moderno y profesional. */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl shadow-lg p-8 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-3xl font-bold border-2 border-white/30 shadow-inner">
@@ -76,6 +91,8 @@ export function DashboardHome() {
             </div>
           </div>
         </div>
+        
+        {/* 🔗 'hidden md:block' oculta la fecha en móviles para ahorrar espacio. */}
         <div className="hidden md:block text-right">
           <p className="text-blue-200 text-sm font-medium uppercase tracking-wider">Fecha de hoy</p>
           <p className="text-2xl font-bold">
@@ -84,7 +101,7 @@ export function DashboardHome() {
         </div>
       </div>
 
-      {/* 2. TARJETAS DE ESTADÍSTICAS RÁPIDAS */}
+      {/* 📌 2. TARJETAS DE ESTADÍSTICAS RÁPIDAS */}
       <div>
         <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
           <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,7 +109,11 @@ export function DashboardHome() {
           </svg>
           Resumen General
         </h3>
+        
+        {/* 🔗 Grid responsive: 1 columna en móvil, 3 columnas en pantallas medianas y superiores. */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Tarjeta 1: Clientes */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-blue-50 rounded-lg">
@@ -103,6 +124,8 @@ export function DashboardHome() {
             <h4 className="text-gray-500 text-sm font-medium">Total Clientes</h4>
             <p className="text-3xl font-bold text-gray-900 mt-1">150</p>
           </div>
+
+          {/* Tarjeta 2: Productos */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-emerald-50 rounded-lg">
@@ -113,6 +136,8 @@ export function DashboardHome() {
             <h4 className="text-gray-500 text-sm font-medium">Productos en Catálogo</h4>
             <p className="text-3xl font-bold text-gray-900 mt-1">320</p>
           </div>
+
+          {/* Tarjeta 3: Ventas */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-purple-50 rounded-lg">
@@ -126,7 +151,7 @@ export function DashboardHome() {
         </div>
       </div>
 
-      {/* 3. SECCIÓN DE ACCESOS RÁPIDOS */}
+      {/* 📌 3. SECCIÓN DE ACCESOS RÁPIDOS */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <h3 className="text-lg font-bold text-gray-800 mb-4">Accesos Rápidos</h3>
         <div className="flex flex-wrap gap-4">

@@ -1,7 +1,11 @@
+// frontend/src/features/emisor/components/ActividadEconomicaSelector.tsx
+
 import { useState, useEffect, useRef } from 'react';
 import { UseFormSetValue, UseFormWatch, FieldErrors } from 'react-hook-form';
 import { EmisorFormData } from '../api/emisor_api';
 
+// 📌 INTERFAZ DE PROPS
+// Recibe los datos del catálogo y las funciones de React Hook Form para manipular el estado del formulario padre.
 interface ActividadSelectorProps {
   catalogData: any[];
   setValue: UseFormSetValue<EmisorFormData>;
@@ -12,11 +16,15 @@ interface ActividadSelectorProps {
 export function ActividadEconomicaSelector({ catalogData, setValue, watch, errors }: ActividadSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  // 🔗 useRef se usa para detectar clics fuera del componente y cerrar el dropdown.
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // Observa el valor actual del código de actividad en el formulario
   const codActual = watch('cod_actividad');
 
-  // 1. Sincronizar si viene con datos (modo edición)
+  // 📌 1. SINCRONIZACIÓN INICIAL (MODO EDICIÓN)
+  // Si el formulario se carga con datos existentes, busca el elemento en el catálogo 
+  // y pre-llena el input de búsqueda con "Código - Descripción" para que el usuario lo vea.
   useEffect(() => {
     if (codActual && catalogData) {
       const item = catalogData.find((a: any) => a.codigo === codActual);
@@ -26,14 +34,17 @@ export function ActividadEconomicaSelector({ catalogData, setValue, watch, error
     }
   }, [codActual, catalogData]);
 
-  // 2. Filtrar resultados en tiempo real (limitado a 50 para rendimiento)
+  // 📌 2. FILTRADO EN TIEMPO REAL
+  // Filtra por código o por nombre. 
+  // ⚠️ .slice(0, 50) es una optimización de rendimiento crítica: evita renderizar miles de nodos DOM si el catálogo es gigante.
   const filtered = catalogData.filter((item: any) => 
     item.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.valor.toLowerCase().includes(searchTerm.toLowerCase())
   ).slice(0, 50);
 
-  // 3. Al hacer clic en una opción, llenar los DOS campos por separado
+  // 📌 3. SELECCIÓN DE ELEMENTO
   const handleSelect = (item: any) => {
+    // Actualiza AMBOS campos en el formulario padre (código y descripción)
     setValue('cod_actividad', item.codigo, { shouldValidate: true });
     setValue('desc_actividad', item.valor, { shouldValidate: true });
     setSearchTerm(`${item.codigo} - ${item.valor}`);
@@ -43,14 +54,14 @@ export function ActividadEconomicaSelector({ catalogData, setValue, watch, error
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     setIsOpen(true);
-    // Si el usuario borra todo, limpiamos los campos ocultos
+    // Si el usuario borra el texto manualmente, limpiamos los campos ocultos del formulario para evitar datos inconsistentes.
     if (e.target.value.trim() === '') {
       setValue('cod_actividad', '');
       setValue('desc_actividad', '');
     }
   };
 
-  // 4. Cerrar el desplegable si se hace clic fuera de él
+  // 📌 4. DETECCIÓN DE CLIC FUERA (CLICK OUTSIDE)
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -65,7 +76,7 @@ export function ActividadEconomicaSelector({ catalogData, setValue, watch, error
     <div className="relative" ref={wrapperRef}>
       <label className="block text-sm font-medium text-gray-700 mb-1">Actividad Económica *</label>
       
-      {/* Input de búsqueda */}
+      {/* Input de búsqueda principal */}
       <input
         type="text"
         value={searchTerm}
@@ -77,7 +88,7 @@ export function ActividadEconomicaSelector({ catalogData, setValue, watch, error
         }`}
       />
 
-      {/* Lista desplegable filtrada */}
+      {/* 📌 LISTA DESPLEGABLE FILTRADA */}
       {isOpen && searchTerm.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
           {filtered.length > 0 ? (
@@ -107,7 +118,8 @@ export function ActividadEconomicaSelector({ catalogData, setValue, watch, error
         </p>
       )}
       
-      {/* Feedback visual de lo que se guardará en la BD */}
+      {/* 📌 FEEDBACK VISUAL DE CONFIRMACIÓN */}
+      {/* Muestra al usuario qué valores exactos se guardarán en la BD, generando confianza en la selección. */}
       {codActual && (
         <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800 flex gap-4">
           <span>💾 Código: <strong>{watch('cod_actividad')}</strong></span>

@@ -1,26 +1,30 @@
-//frontend\src\features\emisor\components\UbicacionSelector.tsx
+// frontend/src/features/emisor/components/UbicacionSelector.tsx
+
 import { UseFormRegister, UseFormSetValue, UseFormWatch, FieldErrors } from 'react-hook-form';
 import { EmisorFormData } from '../api/emisor_api';
 
+// 📌 INTERFAZ DE PROPS
 interface UbicacionSelectorProps {
-  catalogData: any; // Datos de "cat-008-distrito"
-  register: UseFormRegister<EmisorFormData>; // <-- AGREGADO
+  catalogData: any; // Datos jerárquicos de "cat-008-distrito"
+  register: UseFormRegister<EmisorFormData>; // 🔗 Agregado para registrar el campo de texto 'complemento'
   setValue: UseFormSetValue<EmisorFormData>;
   watch: UseFormWatch<EmisorFormData>;
   errors: FieldErrors<EmisorFormData>;
 }
 
 export function UbicacionSelector({ catalogData, register, setValue, watch, errors }: UbicacionSelectorProps) {
+  // Observa los valores actuales para controlar la cascada de selección
   const codDepto = watch('direccion.cod_departamento');
   const codMun = watch('direccion.cod_municipio');
 
-  // 1. Obtener lista de departamentos
+  // 📌 1. PROCESAMIENTO DE DATOS DEL CATÁLOGO
+  // Transforma el objeto jerárquico del backend en arrays planos fáciles de iterar en los <select>.
   const departamentos = catalogData ? Object.entries(catalogData).map(([key, value]: [string, any]) => ({
     codigo: key,
     nombre: value.nombre
   })) : [];
 
-  // 2. Obtener lista de municipios del departamento seleccionado
+  // Filtra municipios basándose en el departamento seleccionado
   const municipios = codDepto && catalogData?.[codDepto]?.municipios 
     ? Object.entries(catalogData[codDepto].municipios).map(([key, value]: [string, any]) => ({
         codigo: key,
@@ -28,17 +32,18 @@ export function UbicacionSelector({ catalogData, register, setValue, watch, erro
       }))
     : [];
 
-  // 3. Obtener lista de distritos del municipio seleccionado
+  // Filtra distritos basándose en el municipio seleccionado
   const distritos = codDepto && codMun && catalogData?.[codDepto]?.municipios?.[codMun]?.distritos
     ? catalogData[codDepto].municipios[codMun].distritos
     : [];
 
+  // 📌 2. MANEJADORES DE CAMBIO (CASCADA)
   const handleDeptoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const key = e.target.value;
     const depto = departamentos.find((d: any) => d.codigo === key);
     setValue('direccion.cod_departamento', key);
     setValue('direccion.desc_departamento', depto?.nombre || '');
-    // Limpiar dependencias
+    // ⚠️ LIMPIEZA DE DEPENDENCIAS: Al cambiar el departamento, se resetean municipio y distrito para evitar inconsistencias.
     setValue('direccion.cod_municipio', '');
     setValue('direccion.desc_municipio', '');
     setValue('direccion.cod_distrito', '');
@@ -50,7 +55,7 @@ export function UbicacionSelector({ catalogData, register, setValue, watch, erro
     const mun = municipios.find((m: any) => m.codigo === key);
     setValue('direccion.cod_municipio', key);
     setValue('direccion.desc_municipio', mun?.nombre || '');
-    // Limpiar dependencias
+    // ⚠️ LIMPIEZA DE DEPENDENCIAS: Al cambiar el municipio, se resetea el distrito.
     setValue('direccion.cod_distrito', '');
     setValue('direccion.desc_distrito', '');
   };
@@ -66,7 +71,7 @@ export function UbicacionSelector({ catalogData, register, setValue, watch, erro
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {/* Departamento */}
+      {/* 📌 SELECT: DEPARTAMENTO */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Departamento *</label>
         <select 
@@ -82,13 +87,13 @@ export function UbicacionSelector({ catalogData, register, setValue, watch, erro
         {errors.direccion?.cod_departamento && <p className={errorClass}>{errors.direccion.cod_departamento.message}</p>}
       </div>
 
-      {/* Municipio */}
+      {/* 📌 SELECT: MUNICIPIO */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Municipio *</label>
         <select 
           onChange={handleMunChange} 
           value={codMun} 
-          disabled={!codDepto}
+          disabled={!codDepto} // 🔗 Deshabilitado hasta que se seleccione un departamento
           className={`${selectClass} ${!codDepto ? 'bg-gray-100 cursor-not-allowed' : ''} ${errors.direccion?.cod_municipio ? 'border-red-500' : ''}`}
         >
           <option value="">Seleccione...</option>
@@ -99,13 +104,13 @@ export function UbicacionSelector({ catalogData, register, setValue, watch, erro
         {errors.direccion?.cod_municipio && <p className={errorClass}>{errors.direccion.cod_municipio.message}</p>}
       </div>
 
-      {/* Distrito */}
+      {/* 📌 SELECT: DISTRITO */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Distrito *</label>
         <select 
           onChange={handleDistChange} 
           value={watch('direccion.cod_distrito')} 
-          disabled={!codMun}
+          disabled={!codMun} // 🔗 Deshabilitado hasta que se seleccione un municipio
           className={`${selectClass} ${!codMun ? 'bg-gray-100 cursor-not-allowed' : ''} ${errors.direccion?.cod_distrito ? 'border-red-500' : ''}`}
         >
           <option value="">Seleccione...</option>
@@ -116,7 +121,7 @@ export function UbicacionSelector({ catalogData, register, setValue, watch, erro
         {errors.direccion?.cod_distrito && <p className={errorClass}>{errors.direccion.cod_distrito.message}</p>}
       </div>
 
-      {/* Complemento */}
+      {/* 📌 INPUT: COMPLEMENTO */}
       <div className="md:col-span-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">Complemento de Dirección *</label>
         <input 
