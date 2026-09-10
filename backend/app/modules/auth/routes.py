@@ -14,7 +14,6 @@ from app.modules.auth.schemas import (
 )
 from app.modules.auth.services import (
     login,
-    register_user,
     logout,
     refresh_access_token
 )

@@ -42,7 +42,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 #Esta funcion es un atajo para refrescar el token de 30 minutos a 7 dias
-#cunado se configure la fontend estara en funcion
+#cuando se configure la fontend estara en funcion
 def create_refresh_token(data: dict) -> str:
     """
     Crea un refresh token JWT (mayor duración).

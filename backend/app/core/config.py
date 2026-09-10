@@ -21,8 +21,8 @@ class Settings:
     # SEGURIDAD
     # ===========================================================
     SECRET_KEY: str = os.getenv("SECRET_KEY", "cambia_esta_clave_en_produccion")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    
+    ALGORITHM: str = os.getenv("ALGORITHM")
+
     # ===========================================================
     # REDIS (OPCIONAL)
     # ===========================================================
@@ -31,10 +31,10 @@ class Settings:
     # ===========================================================
     # RATE LIMITING
     # ===========================================================
-    RATE_LIMIT_DEFAULT: int = int(os.getenv("RATE_LIMIT_DEFAULT", "100"))
-    RATE_LIMIT_WINDOW: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
-    RATE_LIMIT_AUTH: int = int(os.getenv("RATE_LIMIT_AUTH", "5"))
-    RATE_LIMIT_AUTH_WINDOW: int = int(os.getenv("RATE_LIMIT_AUTH_WINDOW", "60"))
+    RATE_LIMIT_DEFAULT: int = int(os.getenv("RATE_LIMIT_DEFAULT", "100"))#El número máximo de peticiones permitidas.
+    RATE_LIMIT_WINDOW: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))#Un usuario normal puede hacer un máximo de 100 peticiones cada 60 segundos
+    RATE_LIMIT_AUTH: int = int(os.getenv("RATE_LIMIT_AUTH", "5"))#El número máximo de peticiones para rutas sensibles.
+    RATE_LIMIT_AUTH_WINDOW: int = int(os.getenv("RATE_LIMIT_AUTH_WINDOW", "60"))#Un usuario solo puede intentar iniciar sesión (login) 5 veces cada 60 segundos.
     
     # ===========================================================
     # URL DE BASE DE DATOS (propiedad calculada)
