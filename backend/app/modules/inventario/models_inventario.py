@@ -69,7 +69,6 @@ class EstadoItems(Base):
 
 
 class Items(Base):
-    """Modelo para items de ingreso de inventario"""
     __tablename__ = "items"
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -81,6 +80,10 @@ class Items(Base):
     serie = Column(String(100), nullable=False, index=True)
     dte = Column(String(50), nullable=True)
     dias_stock = Column(Integer, nullable=False, default=0)
+
+    # ← NUEVO: control de granel
+    cantidad_inicial = Column(Integer, nullable=False, default=1)  # qty_contenido del producto, o 1 si no es granel
+    cantidad_actual = Column(Integer, nullable=False, default=1)   # se descuenta con cada salida
     
     activo = Column(Boolean, default=True, index=True)
     
@@ -92,6 +95,7 @@ class Items(Base):
     producto = relationship("Producto")
     bodega = relationship("Bodega")
     estado_item = relationship("EstadoItems", back_populates="items")
+    movimientos = relationship("Movimiento", back_populates="item", cascade="all, delete-orphan")  # ← NUEVO
     
     def __repr__(self):
         return f"<Items(id={self.id}, ingreso_id={self.ingreso_id}, producto_id={self.producto_id})>"
@@ -105,3 +109,65 @@ class Estado_Ingreso(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+class TiposMovimiento(Base):
+    """Catálogo de tipos de movimiento de inventario"""
+    __tablename__ = "tipos_movimiento"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+
+    # Ejemplos: INGRESO, TRASLADO, SALIDA_VENTA, AJUSTE
+    nombre = Column(String(50), nullable=False, unique=True, index=True)
+    observaciones = Column(String(150), nullable=True)
+
+    # Indica si este tipo SUMA o RESTA cantidad_actual/stock al aplicarse
+    afecta_suma = Column(Boolean, nullable=False, default=False)
+
+    activo = Column(Boolean, default=True, index=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relaciones
+    movimientos = relationship("Movimiento", back_populates="tipo_movimiento")
+
+    def __repr__(self):
+        return f"<TiposMovimiento(id={self.id}, nombre={self.nombre})>"
+    
+    
+class Movimiento(Base):
+    """Auditoría de todos los movimientos de inventario (ingresos, traslados, salidas)"""
+    __tablename__ = "movimientos"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+
+    item_id = Column(Integer, ForeignKey("items.id"), nullable=False, index=True)
+    tipo_movimiento_id = Column(Integer, ForeignKey("tipos_movimiento.id"), nullable=False, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+
+    cantidad = Column(Integer, nullable=False)  # cuánto se movió (1 = unidad completa, 7 = granel)
+
+    # Trazabilidad de bodega (traslados usan ambos, ingreso/salida solo uno)
+    bodega_origen_id = Column(Integer, ForeignKey("bodegas.id"), nullable=True, index=True)
+    bodega_destino_id = Column(Integer, ForeignKey("bodegas.id"), nullable=True, index=True)
+
+    # Referencia a venta, si aplica (nullable porque no todo movimiento es una venta)
+    #venta_id = Column(Integer, ForeignKey("ventas.id"), nullable=True, index=True)
+
+    # Snapshot del saldo del item antes/después, para auditoría sin necesidad de recalcular
+    saldo_anterior = Column(Integer, nullable=False)
+    saldo_nuevo = Column(Integer, nullable=False)
+
+    observaciones = Column(Text, nullable=True)
+
+    fecha = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relaciones
+    item = relationship("Items", back_populates="movimientos")
+    tipo_movimiento = relationship("TiposMovimiento", back_populates="movimientos")
+    usuario = relationship("Usuario")
+    bodega_origen = relationship("Bodega", foreign_keys=[bodega_origen_id])
+    bodega_destino = relationship("Bodega", foreign_keys=[bodega_destino_id])
+
+    def __repr__(self):
+        return f"<Movimiento(id={self.id}, item_id={self.item_id}, tipo={self.tipo_movimiento_id}, cantidad={self.cantidad})>"

@@ -135,6 +135,11 @@ class Producto(Base):
     descripcion = Column(Text, nullable=True)
     marca = Column(String(100), nullable=True)
     
+    
+    # ← NUEVO: control de granel
+    vendible_granel = Column(Boolean, nullable=False, default=False)
+    qty_contenido = Column(Integer, nullable=True)  # ej. 100 si es caja de 100 tornillos; null si no aplica
+    
     # Tipo: BIEN o SERVICIO
     tipo = Column(
         Enum(TipoProducto),

@@ -7,7 +7,9 @@ Con debug detallado en cada operación
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from app.modules.inventario.models_inventario import Ingreso, Items, EstadoItems
+from app.modules.inventario.models_inventario import (
+    Ingreso, Items, EstadoItems, Estado_Ingreso
+)
 from app.modules.inventario.schemas_inventario import (
     ItemsCreate, ItemsUpdate,
     EstadoItemsCreate, EstadoItemsUpdate
@@ -56,8 +58,9 @@ def get_estados_items(db: Session, skip: int = 0, limit: int = 100, activo: bool
     logger.info(f"🔍 Obteniendo estados de items (skip={skip}, limit={limit})")
     
     query = db.query(EstadoItems)
-    if activo is not None:
-        query = query.filter(EstadoItems.activo == activo)
+    # Nota: Si tu modelo EstadoItems no tiene el campo 'activo', quita este filtro
+    # if activo is not None:
+    #     query = query.filter(EstadoItems.activo == activo)
     
     estados = query.offset(skip).limit(limit).all()
     logger.info(f"✅ Se encontraron {len(estados)} estados")
@@ -69,7 +72,7 @@ def crear_estado_item(db: Session, estado: EstadoItemsCreate):
     logger.info("=" * 60)
     logger.info("🆕 INICIANDO CREACIÓN DE ESTADO DE ITEM")
     logger.info(f"📛 Estado: {estado.estado}")
-    logger.info(f"📝 Descripción: {estado.descripcion}")
+    logger.info(f"📝 Observaciones: {estado.observaciones}")
     logger.info("=" * 60)
     
     # Verificar si ya existe
@@ -80,8 +83,7 @@ def crear_estado_item(db: Session, estado: EstadoItemsCreate):
     
     db_estado = EstadoItems(
         estado=estado.estado,
-        descripcion=estado.descripcion,
-        activo=True
+        observaciones=estado.observaciones,  # ← CORREGIDO: coincide con el modelo
     )
     
     try:
@@ -114,7 +116,8 @@ def actualizar_estado_item(db: Session, estado_id: int, estado: EstadoItemsUpdat
     
     logger.info(f"📊 Datos ANTES: Estado={db_estado.estado}")
     
-    update_data = estado.dict(exclude_unset=True)
+    # ← CORREGIDO: .model_dump() es el estándar en Pydantic V2 (reemplaza a .dict())
+    update_data = estado.model_dump(exclude_unset=True)
     logger.info(f"📝 Datos RECIBIDOS: {update_data}")
     
     # Si se cambia el nombre, verificar que no exista otro
@@ -162,7 +165,7 @@ def get_item_by_id(db: Session, item_id: int):
 
 def get_items_by_ingreso(db: Session, ingreso_id: int):
     """Obtener todos los items de un ingreso"""
-    logger.info(f" Buscando items del ingreso ID: {ingreso_id}")
+    logger.info(f"🔍 Buscando items del ingreso ID: {ingreso_id}")
     items = db.query(Items).filter(Items.ingreso_id == ingreso_id).all()
     
     logger.info(f"✅ Se encontraron {len(items)} items")
@@ -171,13 +174,13 @@ def get_items_by_ingreso(db: Session, ingreso_id: int):
 
 def get_items(db: Session, skip: int = 0, limit: int = 100, ingreso_id: int = None, producto_id: int = None, bodega_id: int = None):
     """Obtener lista de items con filtros"""
-    logger.info(f" Obteniendo items (skip={skip}, limit={limit})")
+    logger.info(f"🔍 Obteniendo items (skip={skip}, limit={limit})")
     
     query = db.query(Items)
     
     if ingreso_id is not None:
         query = query.filter(Items.ingreso_id == ingreso_id)
-        logger.info(f" Filtro aplicado: ingreso_id={ingreso_id}")
+        logger.info(f"🔎 Filtro aplicado: ingreso_id={ingreso_id}")
     
     if producto_id is not None:
         query = query.filter(Items.producto_id == producto_id)
@@ -195,12 +198,13 @@ def get_items(db: Session, skip: int = 0, limit: int = 100, ingreso_id: int = No
 def crear_item(db: Session, item: ItemsCreate):
     """Crear nuevo item"""
     logger.info("=" * 60)
-    logger.info(" INICIANDO CREACIÓN DE ITEM")
+    logger.info("🆕 INICIANDO CREACIÓN DE ITEM")
     logger.info(f"📦 Ingreso ID: {item.ingreso_id}")
     logger.info(f"📦 Producto ID: {item.producto_id}")
     logger.info(f"🏭 Bodega ID: {item.bodega_id}")
     logger.info(f"🔢 Serie: {item.serie}")
-    logger.info(f" Días stock: {item.dias_stock}")
+    logger.info(f"📦 Cantidad Inicial: {item.cantidad_inicial}")
+    logger.info(f"📦 Cantidad Actual: {item.cantidad_actual}")
     logger.info("=" * 60)
     
     db_item = Items(
@@ -211,6 +215,8 @@ def crear_item(db: Session, item: ItemsCreate):
         serie=item.serie,
         dte=item.dte,
         dias_stock=item.dias_stock,
+        cantidad_inicial=item.cantidad_inicial,  # ← AGREGADO: Control de granel
+        cantidad_actual=item.cantidad_actual,    # ← AGREGADO: Control de granel
         activo=True
     )
     
@@ -247,7 +253,8 @@ def actualizar_item(db: Session, item_id: int, item: ItemsUpdate):
     logger.info(f"   - Bodega ID: {db_item.bodega_id}")
     logger.info(f"   - Serie: {db_item.serie}")
     
-    update_data = item.dict(exclude_unset=True)
+    # ← CORREGIDO: .model_dump() es el estándar en Pydantic V2
+    update_data = item.model_dump(exclude_unset=True)
     logger.info(f"📝 Datos RECIBIDOS: {update_data}")
     
     for field, value in update_data.items():
@@ -268,10 +275,10 @@ def actualizar_item(db: Session, item_id: int, item: ItemsUpdate):
         logger.error(f"❌ ERROR DE BASE DE DATOS: {str(e)}")
         raise ValueError(f"Error de base de datos: {str(e)}")
 
+
 # ===========================================================
 # ESTADO INGRESO - SERVICIOS
 # ===========================================================
-from app.modules.inventario.models_inventario import Estado_Ingreso # Asegúrate de importarlo arriba
 
 def get_estados_ingreso(db: Session):
     """Obtener lista de estados de ingreso"""
@@ -279,4 +286,3 @@ def get_estados_ingreso(db: Session):
     estados = db.query(Estado_Ingreso).filter(Estado_Ingreso.nombre_estado.isnot(None)).all()
     logger.info(f"✅ Se encontraron {len(estados)} estados de ingreso")
     return estados
-

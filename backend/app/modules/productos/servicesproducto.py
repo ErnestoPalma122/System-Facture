@@ -476,6 +476,12 @@ def crear_producto(db: Session, producto: ProductoCreate):
         raise ValueError(f"Ya existe un producto con nombre '{producto.nombre}'")
     
     # Crear producto
+       # VALIDACIÓN DE NEGOCIO: Si es a granel, debe tener cantidad
+    if producto.vendible_granel and (producto.qty_contenido is None or producto.qty_contenido <= 0):
+        logger.error("❌ ERROR: Si es vendible a granel, qty_contenido debe ser mayor a 0")
+        raise ValueError("Si el producto es vendible a granel, 'qty_contenido' debe ser mayor a 0")
+
+    # Crear producto
     db_producto = Producto(
         codigo=producto.codigo,
         nombre=producto.nombre,
@@ -483,6 +489,8 @@ def crear_producto(db: Session, producto: ProductoCreate):
         marca=producto.marca,
         tipo=producto.tipo.value if hasattr(producto.tipo, 'value') else producto.tipo,
         categoria_id=producto.categoria_id,
+        vendible_granel=producto.vendible_granel,  # ← AGREGADO
+        qty_contenido=producto.qty_contenido,      # ← AGREGADO
         activo=True
     )
     

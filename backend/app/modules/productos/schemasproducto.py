@@ -157,6 +157,9 @@ class ProductoBase(BaseModel):
     marca: Optional[str] = Field(None, max_length=100, description="Marca del producto")
     tipo: TipoProductoEnum = Field(TipoProductoEnum.SERVICIO, description="Tipo: BIEN o SERVICIO")
     categoria_id: Optional[int] = Field(None, description="ID de la categoría")
+    # --- CORRECCIÓN: Default a False en lugar de None ---
+    vendible_granel: bool = Field(False, description="Indica si el producto es vendible a granel")
+    qty_contenido: Optional[int] = Field(None, ge=0, description="Cantidad de contenido si es vendible a granel")
 
 class ProductoCreate(ProductoBase):
     precio: PrecioCreate = Field(..., description="Precios del producto")
@@ -171,6 +174,10 @@ class ProductoUpdate(BaseModel):
     categoria_id: Optional[int] = None
     activo: Optional[bool] = None
     precio: Optional[PrecioUpdate] = Field(None, description="Precios del producto a actualizar") # <-- AGREGADO
+    
+    # --- NUEVOS CAMPOS PARA EL ESQUEMA ---
+    vendible_granel: Optional[bool] = Field(None, description="Indica si el producto es vendible a granel")
+    qty_contenido: Optional[int] = Field(None, ge=0, description="Cantidad de contenido si es vendible a granel")
 
 class ProductoResponse(ProductoBase):
     id: int
