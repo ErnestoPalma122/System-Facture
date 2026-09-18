@@ -43,6 +43,10 @@ class InMemoryRateLimiter:
         
         return True, remaining, reset_time
 
+    def reset(self):
+        """Limpia todas las solicitudes registradas (uso en tests)."""
+        self.requests.clear()
+
 #Redis es una base de datos de memoria ultra rapida que
 # si 2 o mas servidores estan corriendo los centraliza para 
 #que compartan el mismo limite
@@ -90,6 +94,15 @@ class RedisRateLimiter:
         reset_time = current_time + window
         
         return True, remaining, reset_time
+
+    def reset(self):
+        """Limpia el estado (uso en tests). Si Redis está disponible, limpia
+        solo las claves de rate limit; si no, limpia el fallback en memoria."""
+        if not self.available:
+            self.fallback.reset()
+        else:
+            for key in self.redis.scan_iter("rate_limit:*"):
+                self.redis.delete(key)
 
 
 # Instancia global del rate limiter

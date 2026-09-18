@@ -1,6 +1,8 @@
-from fastapi import Depends, HTTPException, status
+# app/core/dependencies.py
+from fastapi import Depends, HTTPException, status, Cookie, Header # <-- AGREGADO: Cookie y Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session, joinedload
+from typing import Optional # <-- AGREGADO: Para los valores opcionales
 from app.core.database import get_db
 from app.core.jwt import verify_token
 from app.modules.usuarios.models import Usuario, Rol
@@ -14,21 +16,46 @@ security = HTTPBearer()
 # Dependencia que funciona como portero, extrae y decodifica los tokens
 # y centraliza las autenticaciones de cada token
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    # 🔥 MODIFICADO: En lugar de usar Depends(security) que solo lee el Header,
+    # leemos manualmente el Header y la Cookie para soportar ambos métodos de autenticación.
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+    access_token_cookie: Optional[str] = Cookie(None, alias="access_token"),
     db: Session = Depends(get_db)
 ) -> Usuario:
     """
     Dependencia que valida el token JWT y retorna el usuario actual.
     Optimizada para cargar también el rol y sus permisos de una sola vez.
+    🔥 Ahora soporta tokens enviados por Header (Authorization: Bearer) o por Cookie HttpOnly.
     """
     logger.info("=" * 60)
     logger.info("🔐 VALIDANDO TOKEN JWT")
     logger.info("=" * 60)
     
-    token = credentials.credentials
+    # 🔥 LÓGICA DE EXTRACCIÓN DE TOKEN (Busca primero en Header, luego en Cookie)
+    token = None
+    
+    # 1. Intentar obtener del Header (Prioridad alta, usado por Swagger/Postman)
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        logger.info("🔑 Token extraído del Header 'Authorization'")
+    
+    # 2. Si no hay Header, intentar obtener de la Cookie HttpOnly (Usado por el Frontend)
+    elif access_token_cookie:
+        token = access_token_cookie
+        logger.info("🍪 Token extraído de la Cookie 'access_token'")
+
+    # Si después de buscar en ambos lados no hay token, rechazamos la petición
+    if not token:
+        logger.error("❌ No se proporcionó token (ni en Header ni en Cookie)")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No se proporcionó token de autenticación",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     logger.info(f"🔑 Token recibido: {token[:30]}...")
     
-    # Verificar token
+    # Verificar token (A partir de aquí, tu código original sigue intacto)
     payload = verify_token(token)
     
     if not payload:

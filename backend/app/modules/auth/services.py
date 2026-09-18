@@ -1,4 +1,4 @@
-#C:\Users\PC\Desktop\Factu\backend\app\modules\auth\services.py
+#backend\app\modules\auth\services.py   
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -175,7 +175,7 @@ def create_user_session(
         user_agent=user_agent,
         estado=EstadoSesion.ACTIVA,
         activo=True,
-        expires_at=datetime.utcnow() + timedelta(minutes=30)
+        expires_at=datetime.utcnow() + timedelta(minutes=1440) # <-- MODIFICADO: De 30 a 1440 minutos (24 horas)
     )
     
     try:

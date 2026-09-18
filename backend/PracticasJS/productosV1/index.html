@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Producto - API REST</title>
+    <!-- Vinculamos la hoja de estilos clásica -->
+    <link rel="stylesheet" href="css.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>Registrar Nuevo Producto</h1>
+        
+        <!-- Área para mensajes de feedback (éxito o error) -->
+        <div id="mensaje" class="mensaje"></div>
+
+        <form id="formProducto">
+            <!-- SECCIÓN 1: INFORMACIÓN GENERAL -->
+            <fieldset>
+                <legend>Información General</legend>
+                
+                <div class="form-group">
+                    <label for="codigo">Código:</label>
+                    <input type="text" id="codigo" name="codigo" required placeholder="Ej: PROD-001">
+                </div>
+
+                <div class="form-group">
+                    <label for="nombre">Nombre:</label>
+                    <input type="text" id="nombre" name="nombre" required placeholder="Ej: Martillo de acero">
+                </div>
+
+                <div class="form-group">
+                    <label for="descripcion">Descripción:</label>
+                    <textarea id="descripcion" name="descripcion" rows="3" required placeholder="Detalles del producto..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="marca">Marca:</label>
+                    <input type="text" id="marca" name="marca" required placeholder="Ej: Truper">
+                </div>
+
+                <div class="form-group">
+                    <label for="tipo">Tipo:</label>
+                    <select id="tipo" name="tipo" required>
+                        <option value="BIEN">BIEN</option>
+                        <option value="SERVICIO">SERVICIO</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="categoria_id">ID de Categoría:</label>
+                    <input type="number" id="categoria_id" name="categoria_id" min="1" required placeholder="Ej: 5">
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="vendible_granel" name="vendible_granel">
+                    <label for="vendible_granel">¿Vendible a granel?</label>
+                </div>
+
+                <div class="form-group">
+                    <label for="qty_contenido">Cantidad de Contenido:</label>
+                    <input type="number" id="qty_contenido" name="qty_contenido" min="0" step="0.01" value="0" placeholder="Ej: 1.5">
+                </div>
+            </fieldset>
+
+            <!-- SECCIÓN 2: PRECIOS -->
+            <fieldset>
+                <legend>Configuración de Precios</legend>
+                
+                <div class="form-group">
+                    <label for="precio_base">Precio Base:</label>
+                    <input type="number" id="precio_base" name="precio_base" min="0" step="0.01" value="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="precio_costo">Precio Costo:</label>
+                    <input type="number" id="precio_costo" name="precio_costo" min="0" step="0.01" value="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="precio_publico">Precio Público:</label>
+                    <input type="number" id="precio_publico" name="precio_publico" min="0" step="0.01" value="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="precio_iva">Precio con IVA:</label>
+                    <input type="number" id="precio_iva" name="precio_iva" min="0" step="0.01" value="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="precio_promo">Precio Promoción:</label>
+                    <input type="number" id="precio_promo" name="precio_promo" min="0" step="0.01" value="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="precio_descuento">Precio con Descuento:</label>
+                    <input type="number" id="precio_descuento" name="precio_descuento" min="0" step="0.01" value="0">
+                </div>
+            </fieldset>
+
+            <!-- BOTÓN DE ENVÍO -->
+            <button type="submit" id="btnEnviar">Guardar Producto</button>
+        </form>
+    </div>
+
+    <!-- Vinculamos el archivo JavaScript clásico -->
+    <script type="module" src="form-producto.js"></script>
+</body>
+</html>

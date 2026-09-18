@@ -4,6 +4,7 @@ from typing import Optional
 from jose import JWTError, jwt
 from app.core.config import settings
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=30)  # 30 minutos por defecto
+        expire = datetime.utcnow() + timedelta(minutes=1440)  # 24 horas por defecto
     
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "jti": str(uuid.uuid4())})
     
     logger.info(f"📝 Datos del token: {data}")
     logger.info(f"⏰ Expira en: {expire}")

@@ -1,6 +1,5 @@
-
-# C:\Users\PC\Desktop\Factu\backend\app\modules\auth\routes.py
-from fastapi import APIRouter, Depends, Request, status, HTTPException, Header
+#backend\app\modules\auth\routes.py 
+from fastapi import APIRouter, Depends, Request, status, HTTPException, Header, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.core.rate_limiter import rate_limit
@@ -49,6 +48,7 @@ router = APIRouter(prefix="/auth", tags=["Autenticación"])
 )
 async def iniciar_sesion(
     request: Request,
+    response: Response, # <-- AGREGADO: Para poder establecer la cookie
     credentials: LoginRequest,
     db: Session = Depends(get_db)
 ):
@@ -76,6 +76,17 @@ async def iniciar_sesion(
         usuario = db.query(Usuario).filter(Usuario.id == result["user_id"]).first()
         
         logger.info("✅ LOGIN EXITOSO - Retornando respuesta con datos de usuario")
+        
+        # 🔥 AGREGADO: Configurar la cookie HttpOnly para que el navegador la guarde de forma segura
+        response.set_cookie(
+            key="access_token",
+            value=result["access_token"],
+            httponly=True,        # JavaScript no puede leerla (seguridad XSS)
+            secure=False,         # False para desarrollo local (http). True para producción (https)
+            samesite="lax",       # Previene ataques CSRF
+            max_age=86400         # 24 horas en segundos
+        )
+        logger.info("🍪 Cookie HttpOnly 'access_token' establecida en la respuesta.")
         
         # 3. ✅ RETORNO CORREGIDO (Sintaxis válida y datos completos)
         return LoginResponse(
@@ -160,7 +171,8 @@ async def olvide_mi_contrasena(
 async def cerrar_sesion(
     request: Request,
     authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    response: Response = None # <-- AGREGADO para poder borrar la cookie
 ):
     """
     Endpoint para cerrar sesión.
@@ -193,6 +205,10 @@ async def cerrar_sesion(
     
     try:
         success = logout(db, token)
+        
+        # 🔥 AGREGADO: Borrar la cookie al cerrar sesión
+        if response:
+            response.delete_cookie(key="access_token")
         
         if success:
             logger.info("✅ LOGOUT EXITOSO")
